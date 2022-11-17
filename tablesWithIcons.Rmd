@@ -7,14 +7,14 @@ output:
     depth: 4
     number_sections: no
     theme: sandstone
-    toc: no
+    toc: yes
     toc_float:
       collapsed: yes
       smooth_scroll: yes
 ---
 
-```{r setup, message=FALSE,warning=FALSE}
-knitr::opts_chunk$set(tidy=TRUE,
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(tidy=FALSE,
                       echo = TRUE, 
                       cache = FALSE,
                       message=FALSE,
@@ -141,4 +141,73 @@ gt(data) %>%
 
 <br />
 
-## Example of 
+****
+
+## Example of table with all elements as icons
+
+Make customized images for each element in illustrator (elementsToExport.ai).
+* Name the files differently depending if these are column names, row names or content. 
+
+<br />
+
+* Replacing all elements as icons requires some data wrangling given the transforming function doesn't work for column names
+
+```{r}
+icons <- data.frame(icons = list.files(here('elements'), full.names = TRUE, 
+                                       pattern = '.svg')) %>%
+  mutate(columns = basename(tools::file_path_sans_ext(icons))) %>% 
+  filter(str_detect(columns, "_")) %>% 
+  separate(columns, into = c("column","content"), sep = "_", extra = "drop")
+
+# prepare column header
+colData <- data.frame(content = c('Species',colnames(data0))) %>% 
+  left_join(filter(icons, column %in% 'header'), by = "content") %>% 
+  pivot_wider(names_from = content, values_from = icons) %>% 
+  select(-column)
+
+# prepare row header
+rowData <- data.frame(content = as.character(seq(1:nrow(data0)))) %>% 
+  left_join(filter(icons, column %in% 'Species'), by = "content") %>% 
+  rename(Species = icons) %>% 
+  select(-column, -content)
+
+# prepare content
+data1 <- data0 %>% 
+  mutate(row = row_number()) %>% 
+  pivot_longer(cols = -row, names_to = "column", values_to = "content",
+               values_ptypes = as.character()) %>% 
+  replace_na(list(content = "NA")) %>% 
+  left_join(select(filter(icons, column %in% 'content'),-column), 
+            by = 'content') %>% 
+  pivot_wider(id_cols = row, names_from = column, values_from = icons) %>% 
+  select(-row)
+
+dataIcons <- colData %>% 
+  bind_rows(cbind(rowData, data1))
+```
+
+```{r}
+gt(dataIcons) %>% 
+  tab_header(
+    title = md("Subsample of plants traits dataset")) %>% 
+  opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
+  text_transform(locations = cells_body(columns = everything(), rows = everything()),
+                 fn = function(x) { map_chr(x, ~ local_image(filename = .x,
+                                                             height = 50))}) %>%
+  tab_source_note(
+    source_note = md("**Source:** Data from plantTraits of the Cluster package.")) %>% 
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+  #cols_width(everything() ~ px(70))  %>%
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(0),
+              table.font.size = px(14),
+              heading.align = 'center',
+              column_labels.hidden = TRUE,
+              table.border.top.style = "hidden",
+              table.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+
+```
