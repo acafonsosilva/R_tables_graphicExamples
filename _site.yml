@@ -1,9 +1,0 @@
-name: "Pretty tables"
-  navbar:
-    title: "Pretty tables"
-    left:
-    - text: "Pretty tables"
-        href: tablesWithIcons.html
-  output:
-    html_document:
-      theme: cosmo
