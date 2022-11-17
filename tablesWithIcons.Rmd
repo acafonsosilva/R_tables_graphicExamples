@@ -33,7 +33,7 @@ here::i_am("tablesWithIcons.Rmd")
 
 <style type="text/css">
 body{
-font: 14px "Ubuntu", sans-serif;
+font: 14px "Mina", sans-serif;
 }
 </style>
 
@@ -111,7 +111,7 @@ data <- data0 %>%
 gt(data) %>% 
   tab_header(
     title = md("Subsample of plants traits dataset")) %>% 
-  opt_table_font(font = list(google_font("Ubuntu"), default_fonts())) %>% 
+  opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
   cols_label(lign = 'Woody plant', leafy = 'Leafy plant', 
              suman = 'Summer annual',everalw = 'Leaves always evergreen',
              windgl = 'Wind dispersed fruits') %>%  
@@ -199,15 +199,13 @@ gt(dataIcons) %>%
   cols_align(
     align = "center",
     columns = everything()) %>%
-  #cols_width(everything() ~ px(70))  %>%
   tab_options(data_row.padding = px(0),
               data_row.padding.horizontal = px(0),
               table.font.size = px(14),
               heading.align = 'center',
-              column_labels.hidden = TRUE,
+              column_labels.hidden = TRUE, ## remove header without icons paths
               table.border.top.style = "hidden",
               table.border.bottom.style = "hidden",
-              table_body.hlines.style = "hidden",
-              table.background.color = "#FFFFFF00") 
+              table_body.hlines.style = "hidden") 
 
 ```
