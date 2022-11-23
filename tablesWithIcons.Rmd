@@ -11,6 +11,7 @@ output:
     toc_float:
       collapsed: yes
       smooth_scroll: yes
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -27,6 +28,8 @@ library(tidyverse)
 library(magick)
 library(here)
 library(gt)
+library(shiny)
+library(shinyFiles)
 
 here::i_am("tablesWithIcons.Rmd")
 ```
@@ -49,6 +52,12 @@ Using a test data set with binary data like the plants traits data set from the 
 data0 <- cluster::plantTraits %>% 
   sample_n(10) %>% 
   select(lign, leafy, suman, everalw, windgl) 
+
+### make test csv file to be used later with shinny app
+tempdata0 <- data0 %>% 
+  add_column("Species" = as.character(seq(1:nrow(data0))), .before = "lign")
+
+write_csv(tempdata0, here("docs/plantTraitsSubset.csv"))
 ```
 
 <br />
@@ -58,11 +67,11 @@ Could use library Icons but would prefer to use google icons (https://fonts.goog
 * Prepare table with download links and saving path to extract icons. Save icons with matching name with data.
 
 ```{r}
-dir.create(here('elements'), showWarnings = FALSE)
+dir.create(here('docs/elements'), showWarnings = FALSE)
 urls <- 'https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/'
 
 icons <- data.frame(urls=paste0(urls, c("check_circle","cancel"),"/default/48px.svg"),
-                    svgs = here('elements', paste0(c("1","0"),".svg")),
+                    svgs = here('docs/elements', paste0(c("1","0"),".svg")),
                     code = c("Present","Absent"))
 
 walk2(icons$urls, icons$svgs, safely(~ download.file(.x , .y, mode = "wb")))
@@ -80,7 +89,7 @@ image_write(present,  path = icons$svgs[1], format = "svg")
 image_write(absent, path = icons$svgs[2], format = "svg")
 
 image_write(image_colorize(present, 100, 'white'), 
-            path = here('elements',"NA.svg"), format = "svg")
+            path = here('docs/elements',"NA.svg"), format = "svg")
 
 ## show colored icons
 image_append(c(present, absent))
@@ -91,7 +100,7 @@ image_append(c(present, absent))
 * Replace the data by the icons paths.
 
 ```{r}
-icons <- data.frame(icons = list.files(here('elements'), full.names = TRUE, pattern = '.svg')) %>%
+icons <- data.frame(icons = list.files(here('docs/elements'), full.names = TRUE, pattern = '.svg')) %>%
   mutate(value = basename(tools::file_path_sans_ext(icons)))
 
 data <- data0 %>% 
@@ -153,7 +162,7 @@ Make customized images for each element in illustrator (elementsToExport.ai).
 * Replacing all elements as icons requires some data wrangling given the transforming function doesn't work for column names
 
 ```{r}
-icons <- data.frame(icons = list.files(here('elements'), full.names = TRUE, 
+icons <- data.frame(icons = list.files(here('docs/elements'), full.names = TRUE, 
                                        pattern = '.svg')) %>%
   mutate(columns = basename(tools::file_path_sans_ext(icons))) %>% 
   filter(str_detect(columns, "_")) %>% 
@@ -209,3 +218,38 @@ gt(dataIcons) %>%
               table_body.hlines.style = "hidden") 
 
 ```
+
+ <br />
+
+****
+
+## Shiny with tables
+
+- Input folder with icons where the names have a first string as "header" separated by "\_" and the same string in the column header of the data. The row header icons should have the first string as the column name separated by "_" and then the matching string in the data. The content icons should have "content" separated by "_" and the string categories in the data.
+
+- Input data in csv format
+
+- Input the height to be used for the icons when plotting the table
+
+ <br />
+ 
+****
+
+Make Input and output buttons and panels
+
+```{r, code = readLines(here('docs/app.R')), eval = FALSE}
+```
+
+****
+
+### Shiny app
+
+```{r}
+shinyAppFile(
+  here('docs/app.R'),
+  options = list(width = "100%", height = 800)
+)
+```
+
+
+
