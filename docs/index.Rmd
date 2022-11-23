@@ -240,16 +240,7 @@ Make Input and output buttons and panels
 ```{r, code = readLines(here('app.R')), eval = FALSE}
 ```
 
-****
 
-### Shiny app that is not working on github
-
-```{r}
-shinyAppFile(
-  here('app.R'),
-  options = list(width = "100%", height = 800)
-)
-```
 
 
 
