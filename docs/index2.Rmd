@@ -11,7 +11,6 @@ output:
     toc_float:
       collapsed: yes
       smooth_scroll: yes
-runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -28,8 +27,6 @@ library(tidyverse)
 library(magick)
 library(here)
 library(gt)
-library(shiny)
-library(shinyFiles)
 
 here::i_am("index.Rmd")
 ```
@@ -223,7 +220,7 @@ gt(dataIcons) %>%
 
 ****
 
-## Shiny with tables
+## Shinny with tables
 
 - Input folder with icons where the names have a first string as "header" separated by "\_" and the same string in the column header of the data. The row header icons should have the first string as the column name separated by "_" and then the matching string in the data. The content icons should have "content" separated by "_" and the string categories in the data.
 
@@ -233,23 +230,3 @@ gt(dataIcons) %>%
 
  <br />
  
-****
-
-Make Input and output buttons and panels
-
-```{r, code = readLines(here('app.R')), eval = FALSE}
-```
-
-****
-
-### Shiny app
-
-```{r}
-shinyAppFile(
-  here('app.R'),
-  options = list(width = "100%", height = 800)
-)
-```
-
-
-
