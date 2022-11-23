@@ -245,7 +245,6 @@ Make Input and output buttons and panels
 ### Shiny app
 
 ```{r}
-
 shinyAppFile(
   here('app.R'),
   options = list(width = "100%", height = 800)
