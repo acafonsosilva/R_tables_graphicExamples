@@ -5,9 +5,7 @@ date: '2022-11-23'
 runtime: shiny
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 
 This R Markdown document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, you can now create documents that allow your readers to change the assumptions underlying your analysis and see the results immediately. 
 
@@ -17,36 +15,34 @@ To learn more, see [Interactive Documents](http://rmarkdown.rstudio.com/authorin
 
 You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change.  This demonstrates how a standard R plot can be made interactive by wrapping it in the Shiny `renderPlot` function. The `selectInput` and `sliderInput` functions create the input widgets used to drive the plot.
 
-```{r eruptions, echo=FALSE}
-inputPanel(
-  selectInput("n_breaks", label = "Number of bins:",
-              choices = c(10, 20, 35, 50), selected = 20),
-  
-  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
-              min = 0.2, max = 2, value = 1, step = 0.2)
-)
-
-renderPlot({
-  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
-       xlab = "Duration (minutes)", main = "Geyser eruption duration")
-  
-  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
-  lines(dens, col = "blue")
-})
-```
+<!--html_preserve--><div class="shiny-input-panel">
+<div class="shiny-flow-layout">
+<div>
+<div class="form-group shiny-input-container">
+<label class="control-label" id="n_breaks-label" for="n_breaks">Number of bins:</label>
+<div>
+<select id="n_breaks"><option value="10">10</option>
+<option value="20" selected>20</option>
+<option value="35">35</option>
+<option value="50">50</option></select>
+<script type="application/json" data-for="n_breaks" data-nonempty="">{"plugins":["selectize-plugin-a11y"]}</script>
+</div>
+</div>
+</div>
+<div>
+<div class="form-group shiny-input-container">
+<label class="control-label" id="bw_adjust-label" for="bw_adjust">Bandwidth adjustment:</label>
+<input class="js-range-slider" id="bw_adjust" data-skin="shiny" data-min="0.2" data-max="2" data-from="1" data-step="0.2" data-grid="true" data-grid-num="9" data-grid-snap="false" data-prettify-separator="," data-prettify-enabled="true" data-keyboard="true" data-data-type="number"/>
+</div>
+</div>
+</div>
+</div><!--/html_preserve--><!--html_preserve--><div id="out0ffd07c71ffc08d3" class="shiny-plot-output" style="width:100%;height:400px;"></div><!--/html_preserve-->
 
 ## Embedded Application
 
 It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
 
-```{r tabsets, echo=FALSE}
-shinyAppDir(
-  system.file("examples/06_tabsets", package = "shiny"),
-  options = list(
-    width = "100%", height = 550
-  )
-)
-```
+<img src="figure/tabsets-1.png" title="plot of chunk tabsets" alt="plot of chunk tabsets" style="display: block; margin: auto;" />
 
 Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
 
