@@ -11,7 +11,6 @@ output:
     toc_float:
       collapsed: yes
       smooth_scroll: yes
-runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -235,7 +234,7 @@ gt(dataIcons) %>%
  
 ****
 
-Make Input and output buttons and panels
+### Make Input and output buttons and panels
 
 ```{r, code = readLines(here('app.R')), eval = FALSE}
 ```
