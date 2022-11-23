@@ -1,58 +1,246 @@
 ---
-title: "Untitled"
+title: "Pretty tables"
+date: "`r Sys.Date()`"
 output: html_document
-date: '2022-11-23'
 runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(tidy=FALSE,
+                      echo = TRUE, 
+                      cache = FALSE,
+                      message=FALSE,
+                      warning=FALSE,
+                      fig.align='center',
+                      fig.width = 16)
+knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
+
+library(tidyverse)
+library(magick)
+library(here)
+library(gt)
+library(shiny)
+library(shinyFiles)
+
+here::i_am("index.Rmd")
 ```
 
-This R Markdown document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, you can now create documents that allow your readers to change the assumptions underlying your analysis and see the results immediately. 
+<style type="text/css">
+body{
+font: 14px "Mina", sans-serif;
+}
+</style>
 
-To learn more, see [Interactive Documents](http://rmarkdown.rstudio.com/authoring_shiny.html).
+<br />
 
-## Inputs and Outputs
+## Example of icons inside the table
 
-You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change.  This demonstrates how a standard R plot can be made interactive by wrapping it in the Shiny `renderPlot` function. The `selectInput` and `sliderInput` functions create the input widgets used to drive the plot.
+Using a test data set with binary data like the plants traits data set from the cluster package.
 
-```{r eruptions, echo=FALSE}
-inputPanel(
-  selectInput("n_breaks", label = "Number of bins:",
-              choices = c(10, 20, 35, 50), selected = 20),
-  
-  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
-              min = 0.2, max = 2, value = 1, step = 0.2)
+* Sample 10 observations and five traits
+
+```{r}
+data0 <- cluster::plantTraits %>% 
+  sample_n(10) %>% 
+  select(lign, leafy, suman, everalw, windgl) 
+
+### make test csv file to be used later with shinny app
+tempdata0 <- data0 %>% 
+  add_column("Species" = as.character(seq(1:nrow(data0))), .before = "lign")
+
+write_csv(tempdata0, here("plantTraitsSubset.csv"))
+```
+
+<br />
+
+Could use library Icons but would prefer to use google icons (https://fonts.google.com/icons) and this is not working (https://github.com/mitchelloharawild/icons/issues/70). So picked the icons on the website and use R to download them.
+
+* Prepare table with download links and saving path to extract icons. Save icons with matching name with data.
+
+```{r}
+dir.create(here('elements'), showWarnings = FALSE)
+urls <- 'https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/'
+
+icons <- data.frame(urls=paste0(urls, c("check_circle","cancel"),"/default/48px.svg"),
+                    svgs = here('elements', paste0(c("1","0"),".svg")),
+                    code = c("Present","Absent"))
+
+walk2(icons$urls, icons$svgs, safely(~ download.file(.x , .y, mode = "wb")))
+```
+<br />
+
+* Edit icons to have different colors with the package Magick, and to make an empty icon for missing data.
+
+```{r}
+present <- image_colorize(image_read_svg(icons$svgs[1]), 100, '#93c47d')
+absent <- image_colorize(image_read_svg(icons$svgs[2]), 100, '#EA9999')
+
+image_write(present,  path = icons$svgs[1], format = "svg")
+
+image_write(absent, path = icons$svgs[2], format = "svg")
+
+image_write(image_colorize(present, 100, 'white'), 
+            path = here('elements',"NA.svg"), format = "svg")
+
+## show colored icons
+image_append(c(present, absent))
+```
+
+<br />
+
+* Replace the data by the icons paths.
+
+```{r}
+icons <- data.frame(icons = list.files(here('elements'), full.names = TRUE, pattern = '.svg')) %>%
+  mutate(value = basename(tools::file_path_sans_ext(icons)))
+
+data <- data0 %>% 
+  rownames_to_column('Species') %>% 
+  pivot_longer(-Species, values_ptypes = as.character()) %>% 
+  replace_na(list(value = "NA")) %>% 
+  left_join(icons, by = 'value') %>% 
+  select(-value) %>% 
+  pivot_wider(names_from = name, values_from = icons)
+```
+
+<br />
+
+* Use the gt package to include icons while making table.
+
+```{r}
+gt(data) %>% 
+  tab_header(
+    title = md("Subsample of plants traits dataset")) %>% 
+  opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
+  cols_label(lign = 'Woody plant', leafy = 'Leafy plant', 
+             suman = 'Summer annual',everalw = 'Leaves always evergreen',
+             windgl = 'Wind dispersed fruits') %>%  
+  text_transform(locations = cells_body(columns = 2:ncol(data), rows = everything()),
+                 fn = function(x) { map_chr(x, ~ local_image(filename = .x,
+                                                             height = 24))}) %>%
+  tab_source_note(
+    source_note = md("**Source:** Data from plantTraits of the Cluster package.")) %>% 
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+  cols_width(everything() ~ px(70))  %>%
+  tab_style(style = list(cell_text(weight = "bold")),
+            locations = list(cells_body(columns = Species, 
+                                        rows = everything()),
+                             cells_column_labels(columns = everything()))) %>% 
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(0),
+              table.font.size = px(14),
+              heading.align = 'center',
+              table.border.top.style = "hidden",
+              table.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+
+```
+
+<br />
+
+****
+
+## Example of table with all elements as icons
+
+Make customized images for each element in illustrator (elementsToExport.ai).
+* Name the files differently depending if these are column names, row names or content. 
+
+<br />
+
+* Replacing all elements as icons requires some data wrangling given the transforming function doesn't work for column names
+
+```{r}
+icons <- data.frame(icons = list.files(here('elements'), full.names = TRUE, 
+                                       pattern = '.svg')) %>%
+  mutate(columns = basename(tools::file_path_sans_ext(icons))) %>% 
+  filter(str_detect(columns, "_")) %>% 
+  separate(columns, into = c("column","content"), sep = "_", extra = "drop")
+
+# prepare column header
+colData <- data.frame(content = c('Species',colnames(data0))) %>% 
+  left_join(filter(icons, column %in% 'header'), by = "content") %>% 
+  pivot_wider(names_from = content, values_from = icons) %>% 
+  select(-column)
+
+# prepare row header
+rowData <- data.frame(content = as.character(seq(1:nrow(data0)))) %>% 
+  left_join(filter(icons, column %in% 'Species'), by = "content") %>% 
+  rename(Species = icons) %>% 
+  select(-column, -content)
+
+# prepare content
+data1 <- data0 %>% 
+  mutate(row = row_number()) %>% 
+  pivot_longer(cols = -row, names_to = "column", values_to = "content",
+               values_ptypes = as.character()) %>% 
+  replace_na(list(content = "NA")) %>% 
+  left_join(select(filter(icons, column %in% 'content'),-column), 
+            by = 'content') %>% 
+  pivot_wider(id_cols = row, names_from = column, values_from = icons) %>% 
+  select(-row)
+
+dataIcons <- colData %>% 
+  bind_rows(cbind(rowData, data1))
+```
+
+```{r}
+gt(dataIcons) %>% 
+  tab_header(
+    title = md("Subsample of plants traits dataset")) %>% 
+  opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
+  text_transform(locations = cells_body(columns = everything(), rows = everything()),
+                 fn = function(x) { map_chr(x, ~ local_image(filename = .x,
+                                                             height = 50))}) %>%
+  tab_source_note(
+    source_note = md("**Source:** Data from plantTraits of the Cluster package.")) %>% 
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(0),
+              table.font.size = px(14),
+              heading.align = 'center',
+              column_labels.hidden = TRUE, ## remove header without icons paths
+              table.border.top.style = "hidden",
+              table.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden") 
+
+```
+
+ <br />
+
+****
+
+## Shiny with tables
+
+- Input folder with icons where the names have a first string as "header" separated by underscore and the same string in the column header of the data. The row header icons should have the first string as the column name separated by underscore and then the matching string in the data. The content icons should have "content" separated by underscore and the string categories in the data.
+
+- Input data in csv format
+
+- Input the height to be used for the icons when plotting the table
+
+ <br />
+ 
+****
+
+Make Input and output buttons and panels
+
+```{r, code = readLines(here('app.R')), eval = FALSE}
+```
+
+****
+
+### Shiny app that is not working on github
+
+```{r}
+shinyAppFile(
+  here('app.R'),
+  options = list(width = "100%", height = 800)
 )
-
-renderPlot({
-  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
-       xlab = "Duration (minutes)", main = "Geyser eruption duration")
-  
-  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
-  lines(dens, col = "blue")
-})
 ```
-
-## Embedded Application
-
-It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
-
-```{r tabsets, echo=FALSE}
-shinyAppDir(
-  system.file("examples/06_tabsets", package = "shiny"),
-  options = list(
-    width = "100%", height = 550
-  )
-)
-```
-
-Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
-
-You can also use the `shinyApp` function to define an application inline rather then in an external directory.
-
-In all of R code chunks above the `echo = FALSE` attribute is used. This is to prevent the R code within the chunk from rendering in the document alongside the Shiny components.
 
 
 
