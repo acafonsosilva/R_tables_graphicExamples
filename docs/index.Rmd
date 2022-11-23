@@ -1,79 +1,57 @@
 ---
-title: "Untitled"
-output: html_document
-date: '2022-11-23'
+title: ""
 runtime: shiny
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(tidy=FALSE,
-                      echo = TRUE, 
-                      cache = FALSE,
-                      message=FALSE,
-                      warning=FALSE,
-                      fig.align='center',
-                      fig.width = 16)
-knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
 
-library(tidyverse)
-library(magick)
-library(here)
-library(gt)
+```{r echo = FALSE}
+
 library(shiny)
-library(shinyFiles)
+library(networkD3)
+library(dplyr)
 
-here::i_am("index.Rmd")
-```
+shinyApp(
+ui <- fluidPage(
+    selectInput(inputId = "school",
+                label   = "School",
+                choices =  c("alpha", "echo")),
+    
+    sankeyNetworkOutput("diagram")
+),
 
-This R Markdown document is made interactive using Shiny. Unlike the more traditional workflow of creating static reports, you can now create documents that allow your readers to change the assumptions underlying your analysis and see the results immediately. 
+server <- function(input, output) {
+    
+    dat <- data.frame(schname = c("alpha", "alpha", "alpha", "echo"),
+                      next_schname = c("bravo", "charlie", "delta", "foxtrot"),
+                      count = c(1, 5, 3, 4))
+    
+    links <- data.frame(source = dat$schname,
+                        target = dat$next_schname,
+                        value  = dat$count)
+    nodes <- data.frame(name = c(as.character(links$source),
+                                 as.character(links$target)) %>%
+                            unique)
+    
+    links$IDsource <- match(links$source, nodes$name) - 1
+    links$IDtarget <- match(links$target, nodes$name) - 1
+    
+    links2 <-reactive({
+        links %>%
+            filter(source == input$school)
+    })
+    
+    
+    output$diagram <- renderSankeyNetwork({
+        sankeyNetwork(
+            Links = links2(),
+            Nodes = nodes,
+            Source = "IDsource",
+            Target = "IDtarget",
+            Value = "value",
+            NodeID = "name",
+            sinksRight = FALSE
+        )
+    })
+}
 
-To learn more, see [Interactive Documents](http://rmarkdown.rstudio.com/authoring_shiny.html).
-
-## Inputs and Outputs
-
-You can embed Shiny inputs and outputs in your document. Outputs are automatically updated whenever inputs change.  This demonstrates how a standard R plot can be made interactive by wrapping it in the Shiny `renderPlot` function. The `selectInput` and `sliderInput` functions create the input widgets used to drive the plot.
-
-```{r eruptions, echo=FALSE}
-inputPanel(
-  selectInput("n_breaks", label = "Number of bins:",
-              choices = c(10, 20, 35, 50), selected = 20),
-  
-  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
-              min = 0.2, max = 2, value = 1, step = 0.2)
 )
-
-renderPlot({
-  hist(faithful$eruptions, probability = TRUE, breaks = as.numeric(input$n_breaks),
-       xlab = "Duration (minutes)", main = "Geyser eruption duration")
-  
-  dens <- density(faithful$eruptions, adjust = input$bw_adjust)
-  lines(dens, col = "blue")
-})
-```
-
-## Embedded Application
-
-It's also possible to embed an entire Shiny application within an R Markdown document using the `shinyAppDir` function. This example embeds a Shiny application located in another directory:
-
-```{r tabsets, echo=FALSE}
-shinyAppDir(
-  system.file("examples/06_tabsets", package = "shiny"),
-  options = list(
-    width = "100%", height = 550
-  )
-)
-```
-
-Note the use of the `height` parameter to determine how much vertical space the embedded application should occupy.
-
-You can also use the `shinyApp` function to define an application inline rather then in an external directory.
-
-In all of R code chunks above the `echo = FALSE` attribute is used. This is to prevent the R code within the chunk from rendering in the document alongside the Shiny components.
-
-
-```{r}
-shinyAppFile(
-  here('app.R'),
-  options = list(width = "100%", height = 800)
-)
-```

@@ -1,0 +1,10 @@
+name: "bla"
+output_dir: "."
+navbar:
+  title: "blabla"
+  type: inverse
+  right:
+    - text: "Contact me"
+      icon: fa-envelope-o
+      href: mailto:ac.afonsosilva@gmail.com
+output: html_document
