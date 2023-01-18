@@ -2,7 +2,7 @@
 title: "Pretty tables"
 date: "`r Sys.Date()`"
 output:
-  github_document:
+  #github_document:
   html_document:
    # keep_md: true
     highlight: pygments
@@ -40,6 +40,10 @@ body{
 font: 14px "Mina", sans-serif;
 }
 </style>
+
+This is a short practice on making pretty tables using the gt package with icons that can be  downloaded and lightly edited with the Magick package or customized in illustrator. Additionally, we can also do a simple shiny app to make tables with a given icon for every cell in a table.
+
+****
 
 <br />
 
@@ -111,7 +115,7 @@ data <- data0 %>%
 
 * Use the gt package to include icons while making table.
 
-```{r}
+```{r, fig.align='center', out.width = "300px"}
 qr <- gt(data) %>% 
   tab_header(
     title = md("Subsample of plants traits dataset")) %>% 
@@ -119,42 +123,45 @@ qr <- gt(data) %>%
   cols_label(lign = 'Woody plant', leafy = 'Leafy plant', 
              suman = 'Summer annual',everalw = 'Leaves always evergreen',
              windgl = 'Wind dispersed fruits') %>%  
-  text_transform(locations = cells_body(columns = 2:ncol(data), rows = everything()),
+  text_transform(locations = cells_body(columns = 2:ncol(data), 
+                                        rows = everything()),
                  fn = function(x) { map_chr(x, ~ local_image(filename = .x,
-                                                             height = 24))}) %>%
+                                                             height = 40))}) %>%
   tab_source_note(
-    source_note = md("**Source:** Data from plantTraits of the Cluster package.")) %>% 
+    source_note = 
+      md("**Source:** Data from plantTraits of the Cluster package.")) %>% 
   cols_align(
     align = "center",
     columns = everything()) %>%
-  cols_width(everything() ~ px(70))  %>%
+  cols_width(everything() ~ px(120))  %>%
   tab_style(style = list(cell_text(weight = "bold")),
             locations = list(cells_body(columns = Species, 
                                         rows = everything()),
                              cells_column_labels(columns = everything()))) %>% 
   tab_options(data_row.padding = px(0),
               data_row.padding.horizontal = px(0),
-              table.font.size = px(14),
+              table.font.size = px(20),
               heading.align = 'center',
               table.border.top.style = "hidden",
               table.border.bottom.style = "hidden",
               table_body.hlines.style = "hidden",
               table.background.color = "#FFFFFF00")
 gtsave(qr, "figures/fig1.png")
+
+include_graphics("figures/fig1.png")
 ```
 
-![](figures/fig1.png){width=250px}
-
 <br />
+
+This Rmarkdown is both being knit as an html and for github, and since for the latter this doesn't render the image with gt but lines of html code it's then easier to save the image and then show the locally saved image.
 
 ****
 
+<br />
+
 ## Example of table with all elements as icons
 
-Make customized images for each element in illustrator (elementsToExport.ai).
-* Name the files differently depending if these are column names, row names or content. 
-
-<br />
+* Make customized images for each element in illustrator (elementsToExport.ai). Name the files differently depending if these are column names, row names or content. 
 
 * Replacing all elements as icons requires some data wrangling given the transforming function doesn't work for column names
 
@@ -192,22 +199,29 @@ dataIcons <- colData %>%
   bind_rows(cbind(rowData, data1))
 ```
 
-```{r, fig.align='center'}
+<br />
+
+* Use the gt package to include icons while making table.
+
+```{r, fig.align='center', out.width = "300px"}
 qr2 <- gt(dataIcons) %>% 
   tab_header(
     title = md("Subsample of plants traits dataset")) %>% 
   opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
-  text_transform(locations = cells_body(columns = everything(), rows = everything()),
+  text_transform(locations = cells_body(columns = everything(), 
+                                        rows = everything()),
                  fn = function(x) { map_chr(x, ~ local_image(filename = .x,
-                                                             height = 50))}) %>%
+                                                             height = 100))}) %>%
   tab_source_note(
-    source_note = md("**Source:** Data from plantTraits of the Cluster package.")) %>% 
+    source_note = 
+      md("**Source:** Data from plantTraits of the Cluster package.")) %>% 
   cols_align(
     align = "center",
     columns = everything()) %>%
-  tab_options(data_row.padding = px(0),
-              data_row.padding.horizontal = px(0),
-              table.font.size = px(14),
+  tab_options(
+    data_row.padding = px(0),
+            data_row.padding.horizontal = px(4),
+              table.font.size = px(35),
               heading.align = 'center',
               column_labels.hidden = TRUE, ## remove header without icons paths
               table.border.top.style = "hidden",
@@ -215,7 +229,36 @@ qr2 <- gt(dataIcons) %>%
               table_body.hlines.style = "hidden") 
 gtsave(qr2, "figures/fig2.png")
 
-include_graphics("figures/fig2.png", dpi=250)
+include_graphics("figures/fig2.png")
 ```
 
-![](figures/fig2.png){width=250px}
+<br />
+
+The gt approach to include images in a table still could be better because it's hard to adjust the height of the elements in a way the data_row padding is not too weird. The proportions of the icons dictates the padding given the height provided to the local_image function.  
+
+****
+
+<br />
+
+## Example of a shiny table to replace every cell for a given customized icon
+
+A major limitation of shiny is how to share the app without having to deploy it in shinyapps.io or without having to install the same R package versions to run it. For a workaround of this problem we can use binder that will open the app in a similar environment it was developed.
+
+The shiny app is in the [shiny_app](https://github.com/acafonsosilva/R_tables_graphicExamples/blob/main/shiny_app/app.R) folder. It can be run with the following code assuming the environment has all the required packages
+
+
+```{r, eval = FALSE}
+library(shiny)
+shinyAppDir(
+  here("shiny_app"),
+  options = list(height = 900)
+)
+```
+
+
+****
+
+### Shiny app code
+
+```{r, code = readLines(here("shiny_app/app.R"))}
+```
