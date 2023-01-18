@@ -122,8 +122,9 @@ gtsave(qr, "figures/fig1.png")
 
 include_graphics("figures/fig1.png")
 ```
-
-<img src="figures/fig1.png" width="300px" style="display: block; margin: auto;" />
+<p align="center">
+ <img src="figures/fig1.png" width="300px" style="display: block; margin: auto;" />
+</p>
 
 <br />
 
@@ -211,8 +212,9 @@ gtsave(qr2, "figures/fig2.png")
 
 include_graphics("figures/fig2.png")
 ```
-
-<img src="figures/fig2.png" width="300px" style="display: block; margin: auto;" />
+<p align="center">
+ <img src="figures/fig2.png" width="300px" style="display: block; margin: auto;" />
+</p>
 
 <br />
 
