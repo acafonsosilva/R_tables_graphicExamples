@@ -111,7 +111,7 @@ data <- data0 %>%
 * Use the gt package to include icons while making table.
 
 ```{r}
-gt(data) %>% 
+as_raw_html(gt(data) %>% 
   tab_header(
     title = md("Subsample of plants traits dataset")) %>% 
   opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
@@ -138,8 +138,7 @@ gt(data) %>%
               table.border.top.style = "hidden",
               table.border.bottom.style = "hidden",
               table_body.hlines.style = "hidden",
-              table.background.color = "#FFFFFF00") 
-
+              table.background.color = "#FFFFFF00")) 
 ```
 
 <br />
