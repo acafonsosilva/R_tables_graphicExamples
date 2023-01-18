@@ -28,6 +28,7 @@ knitr::opts_chunk$set(tidy=FALSE,
                       fig.path = "figures/")
 knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
 
+library(knitr)
 library(tidyverse)
 library(magick)
 library(here)
@@ -191,7 +192,7 @@ dataIcons <- colData %>%
   bind_rows(cbind(rowData, data1))
 ```
 
-```{r}
+```{r, fig.align='center'}
 qr2 <- gt(dataIcons) %>% 
   tab_header(
     title = md("Subsample of plants traits dataset")) %>% 
@@ -213,6 +214,8 @@ qr2 <- gt(dataIcons) %>%
               table.border.bottom.style = "hidden",
               table_body.hlines.style = "hidden") 
 gtsave(qr2, "figures/fig2.png")
+
+include_graphics("figures/fig2.png", dpi=250)
 ```
 
 ![](figures/fig2.png){width=250px}

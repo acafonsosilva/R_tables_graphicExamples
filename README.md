@@ -2,6 +2,11 @@ Pretty tables
 ================
 2023-01-18
 
+<style type="text/css">
+body{
+font: 14px "Mina", sans-serif;
+}
+</style>
 
 <br />
 
@@ -185,6 +190,10 @@ qr2 <- gt(dataIcons) %>%
               table.border.bottom.style = "hidden",
               table_body.hlines.style = "hidden") 
 gtsave(qr2, "figures/fig2.png")
+
+include_graphics("figures/fig2.png", dpi=250)
 ```
+
+<img src="figures/fig2.png" style="display: block; margin: auto;" />
 
 <img src="figures/fig2.png" width="250" />
