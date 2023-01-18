@@ -2,12 +2,6 @@ Pretty tables
 ================
 2023-01-18
 
-<style type="text/css">
-body{
-font: 14px "Mina", sans-serif;
-}
-</style>
-
 This is a short practice on making pretty tables using the gt package
 with icons that can be downloaded and lightly edited with the Magick
 package or customized in illustrator. Additionally, we can also do a
