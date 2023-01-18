@@ -2,8 +2,9 @@
 title: "Pretty tables"
 date: "`r Sys.Date()`"
 output:
+  github_document:
   html_document:
-    keep_md: true
+   # keep_md: true
     highlight: pygments
     depth: 4
     number_sections: no
