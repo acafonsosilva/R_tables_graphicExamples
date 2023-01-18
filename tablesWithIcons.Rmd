@@ -142,7 +142,7 @@ qr <- gt(data) %>%
 gtsave(qr, "figures/fig1.png")
 ```
 
-![](figures/fig1.png)
+![](figures/fig1.png){width=250px}
 
 <br />
 
@@ -192,7 +192,7 @@ dataIcons <- colData %>%
 ```
 
 ```{r}
-gt(dataIcons) %>% 
+qr2 <- gt(dataIcons) %>% 
   tab_header(
     title = md("Subsample of plants traits dataset")) %>% 
   opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
@@ -212,5 +212,7 @@ gt(dataIcons) %>%
               table.border.top.style = "hidden",
               table.border.bottom.style = "hidden",
               table_body.hlines.style = "hidden") 
-
+gtsave(qr2, "figures/fig2.png")
 ```
+
+![](figures/fig2.png){width=250px}
