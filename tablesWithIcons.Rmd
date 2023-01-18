@@ -16,6 +16,8 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+here::i_am("tablesWithIcons.Rmd")
+
 knitr::opts_chunk$set(tidy=FALSE,
                       echo = TRUE, 
                       cache = FALSE,
@@ -23,15 +25,13 @@ knitr::opts_chunk$set(tidy=FALSE,
                       warning=FALSE,
                       fig.align='center',
                       fig.width = 16,
-                      fig.path = "README_figs/README-")
+                      fig.path = "figures/")
 knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
 
 library(tidyverse)
 library(magick)
 library(here)
 library(gt)
-
-here::i_am("tablesWithIcons.Rmd")
 ```
 
 <style type="text/css">
@@ -111,7 +111,7 @@ data <- data0 %>%
 * Use the gt package to include icons while making table.
 
 ```{r}
-as_raw_html(gt(data) %>% 
+qr <- gt(data) %>% 
   tab_header(
     title = md("Subsample of plants traits dataset")) %>% 
   opt_table_font(font = list(google_font("Mina"), default_fonts())) %>% 
@@ -138,7 +138,9 @@ as_raw_html(gt(data) %>%
               table.border.top.style = "hidden",
               table.border.bottom.style = "hidden",
               table_body.hlines.style = "hidden",
-              table.background.color = "#FFFFFF00")) 
+              table.background.color = "#FFFFFF00")
+gtsave(qr, "figures/fig1.png")
+qr
 ```
 
 <br />
