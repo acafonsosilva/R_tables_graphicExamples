@@ -3,6 +3,7 @@ title: "Pretty tables"
 date: "`r Sys.Date()`"
 output:
   html_document:
+    keep_md: true
     highlight: pygments
     depth: 4
     number_sections: no
@@ -20,7 +21,8 @@ knitr::opts_chunk$set(tidy=FALSE,
                       message=FALSE,
                       warning=FALSE,
                       fig.align='center',
-                      fig.width = 16)
+                      fig.width = 16,
+                      fig.path = "README_figs/README-")
 knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
 
 library(tidyverse)
@@ -57,7 +59,7 @@ Could use library Icons but would prefer to use google icons (https://fonts.goog
 
 * Prepare table with download links and saving path to extract icons. Save icons with matching name with data.
 
-```{r}
+```{r, eval = FALSE}
 dir.create(here('elements'), showWarnings = FALSE)
 urls <- 'https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsoutlined/'
 
@@ -71,7 +73,7 @@ walk2(icons$urls, icons$svgs, safely(~ download.file(.x , .y, mode = "wb")))
 
 * Edit icons to have different colors with the package Magick, and to make an empty icon for missing data.
 
-```{r}
+```{r, eval = FALSE}
 present <- image_colorize(image_read_svg(icons$svgs[1]), 100, '#93c47d')
 absent <- image_colorize(image_read_svg(icons$svgs[2]), 100, '#EA9999')
 
