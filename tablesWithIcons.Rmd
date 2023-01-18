@@ -140,8 +140,9 @@ qr <- gt(data) %>%
               table_body.hlines.style = "hidden",
               table.background.color = "#FFFFFF00")
 gtsave(qr, "figures/fig1.png")
-qr
 ```
+
+![](figures/fig1.png)
 
 <br />
 
