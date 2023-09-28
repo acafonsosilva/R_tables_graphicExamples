@@ -1,0 +1,2258 @@
+---
+title: "CAT graphs plotted in R for COP27"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    highlight: pygments
+    code_folding: hide
+    depth: 4
+    number_sections: no
+    theme: sandstone
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+---
+
+****
+
+In order to start using R for this script to work follow these steps:
+
+- Download xcode from https://apps.apple.com/us/app/xcode/id497799835?mt=12
+- Then download the specific version of R in https://cloud.r-project.org/bin/macosx/base/R-4.2.0.pkg
+- And download Rstudio in https://www.rstudio.com/products/rstudio/download/#download
+
+```{r, eval = FALSE, echo = TRUE}
+### Then install R package remotes to be able to install the needed packages with 
+### specific versions for more easily reproducibility
+install.packages("remotes")
+library(remotes)
+install_version("knitr", "1.39")
+install_version("tidyverse", "1.3.1")
+install_version("readxl", "1.4.0")
+install_version("gt", "0.6.0")
+install_version("gtExtras", "0.4.0")
+install_version("extrafont", "0.18")
+install_version("dplyr", "1.0.9")
+install_version("rmarkdown", "2.14")
+install_version("webshot", "0.5.3")
+install_version("svglite", "2.1.0")
+install_version("openxlsx", "4.2.5")
+library(webshot)
+webshot::install_phantomjs()
+```
+
+****
+
+```{r setup, include=TRUE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(tidy=TRUE,
+               echo = TRUE, 
+               cache = TRUE,
+               message=FALSE,
+               warning=FALSE,
+               fig.align='center',
+               fig.width = 16)
+knitr::opts_knit$set(progress = TRUE, verbose = TRUE)
+
+### Packages that are necessary for functions used in this script
+library(knitr)
+library(tidyverse)
+library(readxl)
+library(gt)
+library(gtExtras)
+library(lubridate)
+library(openxlsx)
+
+## Due to some conflicts between some R packages it is safer to specify this:
+filter = dplyr::filter
+mutate = dplyr::mutate
+select = dplyr::select
+rename = dplyr::rename
+
+### Setup the working folder that will contain the input data, 
+
+### the design elements and to where outputs will be saved
+path <- "~/anacatarina.as@gmail.com - Google Drive/My Drive/Studios - Paid Projects/2022.06 CAT Masterfiles Tinkering/"
+
+### Matt file pathnames below. Comment in or out as needed. REMEMBER to clear cache before running after worked on via another computer
+#path <- '~/Gdrive-DFC/Studios - Paid Projects/2022.06 CAT Masterfiles Tinkering/'
+```
+
+
+****
+
+# Reverse Bar Chart
+
+## 1-Overall
+
+```{r Overall}
+### Main thing that affects the graphic size is the height of the design icons when 
+### these are used in the table. For different size tables there was a need to readjust 
+### the height and it's easier to have a variable calling it before the code.
+setHeight <- 30
+
+### Make table with all the design elements paths and set up the matching names
+icons <- data.frame(icons = list.files(paste0(path, 
+                                            '2_R-GraphicElements/CATRatings-ReverseBarCharts/R_DesignElements/'), 
+                                       pattern = "svg", full.names = TRUE)) %>%
+  mutate(name = basename(tools::file_path_sans_ext(icons))) %>%
+  separate(name, into = c("columns","content"), sep = "_", extra = "drop", remove = FALSE) %>%
+  mutate(columns = case_when(columns == "Country" ~ "ISO",  # the design elements have ISO labels but a Country labeling instead of ISO 
+                             TRUE ~ columns))
+
+### Load the right file and sheet
+data0 <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                   sheet = "Overall-Subratings", col_types = 'text') %>% 
+  select(-`Sorting order`)
+
+var <- "Overall rating"
+
+data <- data0 %>%
+  mutate(name = paste0("Rating_", !!as.symbol(var), "_Country_", ISO))
+
+if(!all(as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))){
+  extra <- data.frame("ISO" = NA, "Country" = NA, 
+                      missing = as.character(which(!as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))),
+                      "name" = 'Rating_NA_Country_Blank')  
+  colnames(extra)[3] <- var  
+  
+ data <- bind_rows(data, extra) 
+}
+
+dfclean <- left_join(data, icons, by = "name") %>% 
+  arrange(!!as.symbol(var), Country) %>% 
+  select(!!as.symbol(var), icons) %>% 
+  group_by(!!as.symbol(var)) %>%
+  mutate(row = row_number()) %>%
+  drop_na() %>% 
+  pivot_wider(names_from = !!as.symbol(var), values_from = icons) %>% 
+  select(-row) 
+
+dfclean <- icons %>% 
+  filter(columns %in% 'Header') %>% 
+  select(-columns, -name) %>% 
+  pivot_wider(names_from=content, values_from = icons) %>% 
+  bind_rows(dfclean)
+ 
+
+rows <- table(data[,var])+1
+table <- gt(dfclean) %>%
+    sub_missing(columns = everything(), 
+              rows = everything(),
+              missing_text = "") %>%
+    cols_label(`1` = '', `2` = '', `3` = '',`4` = '',`5` = '') %>%  ### don't use headers
+    text_transform(locations = cells_body(columns = everything(), rows = 1),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight*2))}) %>%
+  text_transform(locations = cells_body(columns = `1`, rows = 2:rows[[1]]),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `2`, rows = 2:rows[[2]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `3`, rows = 2:rows[[3]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `4`, rows = 2:rows[[4]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `5`, rows = 2:rows[[5]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  cols_align(align = "center", columns = everything()) %>%
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(1),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+
+```
+
+
+```{r Overall_table, echo=FALSE, eval = TRUE, fig.width=6, fig.height=6}
+### to visualize the outcome in html but not always the output pdf looks the same
+table
+```
+
+```{r Overall_tableExport, include = FALSE, eval = TRUE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_ReverseBarChart-1-Overall.pdf")) 
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+****
+
+### Fair Share
+
+```{r, eval = TRUE}
+setHeight <- 30
+
+### these next graphs are subsections of the Overall so it's easier to use the same 
+### code and just use a variable to set the graph (this could be just a function 
+### but to avoid problems the code is just repeated in the script)
+
+var <- "Fair Share target"
+
+### make matching labels with the icons before to be able to check for the missing Category problem:
+data <- data0 %>%
+  mutate(name = paste0("Rating_", !!as.symbol(var), "_Country_", ISO))
+
+if(!all(as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))){
+  extra <- data.frame("ISO" = NA, "Country" = NA, 
+                      missing = as.character(which(!as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))),
+                      "name" = 'Rating_NA_Country_Blank')  
+  colnames(extra)[3] <- var  
+  
+ data <- bind_rows(data, extra) 
+}
+
+dfclean <- left_join(data, icons, by = "name") %>% 
+  arrange(!!as.symbol(var), Country) %>% 
+  select(!!as.symbol(var), icons) %>% 
+  group_by(!!as.symbol(var)) %>%
+  mutate(row = row_number()) %>%
+  drop_na() %>% 
+  pivot_wider(names_from = !!as.symbol(var), values_from = icons) %>% 
+  select(-row) 
+
+dfclean <- icons %>% 
+  filter(columns %in% 'Header') %>% 
+  select(-columns, -name) %>% 
+  pivot_wider(names_from=content, values_from = icons) %>% 
+  bind_rows(dfclean)
+ 
+
+rows <- table(data[,var])+1
+table <- gt(dfclean) %>%
+    sub_missing(columns = everything(), 
+              rows = everything(),
+              missing_text = "") %>%
+    cols_label(`1` = '', `2` = '', `3` = '',`4` = '',`5` = '') %>%  ### don't use headers
+    text_transform(locations = cells_body(columns = everything(), rows = 1),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight*2))}) %>%
+  text_transform(locations = cells_body(columns = `1`, rows = 2:rows[[1]]),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `2`, rows = 2:rows[[2]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `3`, rows = 2:rows[[3]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `4`, rows = 2:rows[[4]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `5`, rows = 2:rows[[5]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  cols_align(align = "center", columns = everything()) %>%
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(1),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+```
+
+
+```{r, echo=FALSE, eval = TRUE}
+table
+```
+
+```{r, include = FALSE, eval = TRUE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_ReverseBarChart-1.1-FairShare.pdf")) #, zoom = 1.5
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+****
+
+### Domestic Target
+
+
+```{r, eval = TRUE, echo = FALSE}
+setHeight <- 30
+var <- "Domestic or supported target"
+
+####
+data <- data0 %>%
+  mutate(name = paste0("Rating_", !!as.symbol(var), "_Country_", ISO))
+
+if(!all(as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))){
+  extra <- data.frame("ISO" = NA, "Country" = NA, 
+                      missing = as.character(which(!as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))),
+                      "name" = 'Rating_NA_Country_Blank')  
+  colnames(extra)[3] <- var  
+  
+ data <- bind_rows(data, extra) 
+}
+
+dfclean <- left_join(data, icons, by = "name") %>% 
+  arrange(!!as.symbol(var), Country) %>% 
+  select(!!as.symbol(var), icons) %>% 
+  group_by(!!as.symbol(var)) %>%
+  mutate(row = row_number()) %>%
+  drop_na() %>% 
+  pivot_wider(names_from = !!as.symbol(var), values_from = icons) %>% 
+  select(-row) 
+
+dfclean <- icons %>% 
+  filter(columns %in% 'Header') %>% 
+  select(-columns, -name) %>% 
+  pivot_wider(names_from=content, values_from = icons) %>% 
+  bind_rows(dfclean)
+ 
+
+rows <- table(data[,var])+1
+table <- gt(dfclean) %>%
+    sub_missing(columns = everything(), 
+              rows = everything(),
+              missing_text = "") %>%
+    cols_label(`1` = '', `2` = '', `3` = '',`4` = '',`5` = '') %>%  ### don't use headers
+    text_transform(locations = cells_body(columns = everything(), rows = 1),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight*2))}) %>%
+  text_transform(locations = cells_body(columns = `1`, rows = 2:rows[[1]]),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `2`, rows = 2:rows[[2]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `3`, rows = 2:rows[[3]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `4`, rows = 2:rows[[4]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `5`, rows = 2:rows[[5]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  cols_align(align = "center", columns = everything()) %>%
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(1),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+```
+
+
+```{r, echo=FALSE, eval = TRUE}
+table
+```
+
+```{r, include = FALSE, eval = TRUE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_ReverseBarChart-1.2-DomesticTarget.pdf")) #, zoom = 1.5
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+****
+
+### Policies & Action
+
+```{r, eval = TRUE, echo = FALSE}
+setHeight <- 30
+var <- "Policies & action"
+
+####
+data <- data0 %>%
+  mutate(name = paste0("Rating_", !!as.symbol(var), "_Country_", ISO))
+
+if(!all(as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))){
+  extra <- data.frame("ISO" = NA, "Country" = NA, 
+                      missing = as.character(which(!as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))),
+                      "name" = 'Rating_NA_Country_Blank')  
+  colnames(extra)[3] <- var  
+  
+ data <- bind_rows(data, extra) 
+}
+
+dfclean <- left_join(data, icons, by = "name") %>% 
+  arrange(!!as.symbol(var), Country) %>% 
+  select(!!as.symbol(var), icons) %>% 
+  group_by(!!as.symbol(var)) %>%
+  mutate(row = row_number()) %>%
+  drop_na() %>% 
+  pivot_wider(names_from = !!as.symbol(var), values_from = icons) %>% 
+  select(-row) 
+
+dfclean <- icons %>% 
+  filter(columns %in% 'Header') %>% 
+  select(-columns, -name) %>% 
+  pivot_wider(names_from=content, values_from = icons) %>% 
+  bind_rows(dfclean)
+ 
+
+rows <- table(data[,var])+1
+table <- gt(dfclean) %>%
+    sub_missing(columns = everything(), 
+              rows = everything(),
+              missing_text = "") %>%
+    cols_label(`1` = '', `2` = '', `3` = '',`4` = '',`5` = '') %>%  ### don't use headers
+    text_transform(locations = cells_body(columns = everything(), rows = 1),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight*2))}) %>%
+  text_transform(locations = cells_body(columns = `1`, rows = 2:rows[[1]]),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `2`, rows = 2:rows[[2]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `3`, rows = 2:rows[[3]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `4`, rows = 2:rows[[4]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `5`, rows = 2:rows[[5]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  cols_align(align = "center", columns = everything()) %>%
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(1),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+```
+
+
+```{r, echo=FALSE, eval = TRUE}
+table
+```
+
+```{r, include = FALSE, eval = TRUE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_ReverseBarChart-1.3-PoliciesAction.pdf")) #, zoom = 1.5
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+****
+
+### Climate finance
+
+```{r, eval = TRUE, echo = FALSE}
+setHeight <- 30
+var <- "Climate finance"
+
+####
+data <- data0 %>%
+  mutate(name = paste0("Rating_", !!as.symbol(var), "_Country_", ISO))
+
+if(!all(as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))){
+  extra <- data.frame("ISO" = NA, "Country" = NA, 
+                      missing = as.character(which(!as.character(1:5) %in% unique(pull(data,!!as.symbol(var))))),
+                      "name" = 'Rating_NA_Country_Blank')  
+  colnames(extra)[3] <- var  
+  
+ data <- bind_rows(data, extra) 
+}
+
+dfclean <- left_join(data, icons, by = "name") %>% 
+  arrange(!!as.symbol(var), Country) %>% 
+  select(!!as.symbol(var), icons) %>% 
+  group_by(!!as.symbol(var)) %>%
+  mutate(row = row_number()) %>%
+  drop_na() %>% 
+  pivot_wider(names_from = !!as.symbol(var), values_from = icons) %>% 
+  select(-row) 
+
+dfclean <- icons %>% 
+  filter(columns %in% 'Header') %>% 
+  select(-columns, -name) %>% 
+  pivot_wider(names_from=content, values_from = icons) %>% 
+  bind_rows(dfclean)
+ 
+
+rows <- table(data[,var])+1
+table <- gt(dfclean) %>%
+    sub_missing(columns = everything(), 
+              rows = everything(),
+              missing_text = "") %>%
+    cols_label(`1` = '', `2` = '', `3` = '',`4` = '',`5` = '') %>%  ### don't use headers
+    text_transform(locations = cells_body(columns = everything(), rows = 1),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight*2))}) %>%
+  text_transform(locations = cells_body(columns = `1`, rows = 2:rows[[1]]),
+    fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `2`, rows = 2:rows[[2]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `3`, rows = 2:rows[[3]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `4`, rows = 2:rows[[4]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  text_transform(locations = cells_body(columns = `5`, rows = 2:rows[[5]]),
+    fn = function(x) {map_chr(x, ~ local_image(filename = .x, 
+                                               height = setHeight))}) %>%
+  cols_align(align = "center", columns = everything()) %>%
+  tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(1),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+```
+
+
+```{r, echo=FALSE, eval = TRUE}
+table
+```
+
+```{r, include = FALSE, eval = TRUE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_ReverseBarChart-1.4-ClimateFinance.pdf")) #, zoom = 1.5
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+**** 
+
+## 2-Net Zero
+
+```{r}
+setHeight <- 30
+
+## Load the right file and sheet
+data0 <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                  sheet = "NetZero-Subratings", 
+                   col_types = 'text')  %>%
+  mutate(RatingNetZero = str_to_upper(str_extract(`Headline evaluation`, "[a-z]{1}"))) %>%
+  filter(!RatingNetZero %in% 'G')
+
+### This is a bit messy and inefficient but the best way to try to include the header as icons was to put them in the first row.
+
+data1 <- data0 %>% 
+  select(ISO, Country, RatingNetZero) %>% 
+  arrange(RatingNetZero, Country) %>% # order by Rating and then by Country
+  pivot_longer(cols = c("ISO", "RatingNetZero"), 
+               names_to = "columns", values_to = "content") %>%  
+  mutate(content = str_replace_all(content," ","")) %>%
+  left_join(icons, by = c("columns","content")) %>%
+  select(-content) %>% 
+  group_by(Country) %>% 
+  pivot_wider(names_from = columns, values_from = icons) %>% 
+  ungroup() %>% 
+  left_join(select(data0, Country, RatingNetZero), by = 'Country')
+
+cleanData1 <- data.frame(columns = data1$RatingNetZero.y,
+                         icons = data1$RatingNetZero.x) %>% 
+  distinct() %>% 
+  bind_rows(data.frame(columns = data1$RatingNetZero.y,
+                       icons = data1$ISO)) %>% 
+  group_by(columns) %>% 
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = columns, values_from = icons) %>% 
+  select(-row)
+
+##function for column borders
+column_border <- function(data, colName, firstRow, lastRow, color, weight){
+  colName <- all_of(colName)
+  colStyle <- data %>% 
+    tab_style(style = cell_borders(sides = c("left","right"), color = color,
+                                 weight = weight, style = "solid"),
+            locations = cells_body(columns = colName, rows = firstRow:lastRow)) %>% 
+  tab_style(style = cell_borders(sides = "top",color = color,
+                                 weight = weight, style = "solid"),
+            locations = cells_body(columns = colName,rows = firstRow)) %>% 
+  tab_style(style = cell_borders(sides = "bottom",color = color,
+                                 weight = weight, style = "solid"),
+            locations = cells_body(columns = colName,rows = lastRow))
+  return(colStyle)
+}
+
+############
+
+CATcols = c("#B6CA75","#F2E464","#DF7154","#D5D7D8","#EEEFEF")
+names(CATcols) = colnames(cleanData1)
+# names(CATcols) = c("Acceptable","Average","Poor","Information incomplete","No target")
+rows <- table(data0$RatingNetZero)
+
+cleanData3 <- data1 %>% 
+  select(Country, RatingNetZero.y) %>% 
+  mutate(Country = case_when(Country %in% "United States of America" ~ 'United States',
+                             Country %in% 'Russia' ~ 'Russian Federation',
+                             Country %in% 'The United Arab Emirates' ~ 'United Arab Emirates',
+                             Country %in% "The Philippines" ~ "Philippines",
+                             TRUE ~ Country)) %>% 
+  rename(columns = RatingNetZero.y, icons = Country) %>% 
+  distinct() %>% 
+  group_by(columns) %>% 
+  mutate(row = row_number()) %>% 
+  pivot_wider(names_from = columns, values_from = icons) %>% 
+  select(-row) %>% 
+  add_column(sp1 = "", .before = "B") %>% 
+  add_column(sp2 = "", .before = "D") %>% 
+  add_column(sp3 = "", .before = "E") %>% 
+  add_column(sp4 = "", .before = "F") %>% 
+  add_row()
+  
+table <- gt(cleanData3) %>%
+  sub_missing(columns = everything(), 
+              rows = everything(),
+              missing_text = "") %>%
+  cols_label(sp1 = '', sp2 = '', sp3 = '', sp4 = '', 
+             A = 'ACCEPTABLE', B = 'AVERAGE', D = 'POOR',
+             E = 'INFORMATION INCOMPLETE', F = 'NO TARGET') %>% 
+  cols_align(align = "center", columns = everything()) %>%  # column headers in the center
+  tab_options(  table.font.size = 14,
+                data_row.padding = px(1),
+                data_row.padding.horizontal = px(2),
+                column_labels.padding.horizontal = px(0),
+                table.border.top.style = "hidden",
+                table_body.border.top.style = "hidden",
+                # table_body.border.bottom.style = "hidden",
+                table_body.hlines.color = "white",  
+                table.border.bottom.style = "hidden", ### problem only solved with extra last row
+                # column_labels.border.bottom.style = "hidden",
+                # table.background.color = "#FFFFFF00"
+  ) %>% 
+  opt_table_font(font = list(google_font("Ubuntu"), default_fonts())) %>% 
+  cols_width(starts_with("sp") ~ px(10), everything() ~ px(150))
+
+for (i in seq_along(CATcols)){
+  table <- table %>% 
+    column_border(colName = names(CATcols)[i], 
+                  firstRow=1, lastRow = rows[[i]], 
+                  color = CATcols[[i]], weight = px(4))
+}
+
+for (i in seq_along(CATcols)){
+  table <- table %>% 
+    tab_style(
+      style = cell_fill(color = CATcols[[i]]),
+      locations = cells_column_labels(columns = names(CATcols)[i])) %>% 
+    tab_style(
+      style = cell_borders(sides = "all", color = CATcols[[i]],
+                           weight = px(4), style = "solid"),
+      locations = cells_column_labels(columns = names(CATcols)[i])) %>% 
+     tab_style(style = cell_text(weight = "bolder", v_align = "middle", size = "large"),
+               locations = cells_column_labels(columns = names(CATcols)[i]))
+}
+
+  table <- table %>%
+    tab_style(style = cell_text(color = "white"),
+               locations = cells_column_labels(columns = names(CATcols)[c(1,3)])) %>% 
+    tab_style(style = cell_text(color = "#81878A"),
+               locations = cells_column_labels(columns = names(CATcols)[c(2,4,5)]))
+
+table
+```
+
+
+```{r, include = FALSE, eval = TRUE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_ReverseBarChart-2-NetZero.pdf"), vwidth = 600)
+```
+
+ <br />
+ 
+****
+**** 
+
+
+# Ratings details tables
+
+## 1-Overall
+
+```{r}
+setHeight <- 40
+
+data0 <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                   sheet = "Overall-Subratings", col_types = 'text') %>% 
+  arrange(as.factor(as.numeric(`Sorting order`)))    %>%    #order by customized order
+  select(-`Sorting order`)
+  
+  data <- data0 %>% 
+      # Three columns have NAs, not clear if with new data other columns would need to be included here.
+  # Used 7 to match the gray icon and 9 to match with an even lighter gray icon.
+  replace_na(list(`Domestic or supported target` = "7",
+                  `Climate finance` = "7",
+                  `Land use & forestry` = "9")) %>% 
+  # add columns for the space lines and blanks
+  add_column(SpacerLine_1 = "40", .before = "Policies & action") %>%
+  add_column(SpacerLine_2 = "20", .before = "Domestic or supported target") %>%
+  add_column(SpacerLine_3 = "20", .before = "Fair Share target") %>%
+  add_column(SpacerLine_4 = "20", .before = "Climate finance") %>%
+  add_column(SpacerBlank_1 = "40", .before = "Land use & forestry") %>%
+  add_column(SpacerLine_5 = "20", .before = "Net Zero target") %>%
+  
+  # wrangle data
+  pivot_longer(cols = -Country, values_to = "content") %>% 
+  
+  #rename columns to be able to match with icons labels 
+  mutate(columns = case_when(name %in% 'Overall rating' ~ "RatingOverall",
+                             name %in% c("Policies & action",
+                                         "Domestic or supported target",
+                                         "Fair Share target",
+                                         "Climate finance") ~ "SubRating",
+                             name %in% "Land use & forestry" ~ "NetZeroRating",  
+                             name %in% "Net Zero target" ~ "NetZeroRating",
+                             TRUE ~ word(name, sep = '_',1,1))) 
+
+# load the correct icons for this graph
+icons <- data.frame(icons = list.files(paste0(path, '2_R-GraphicElements/CATRatings-AllRatingsTable/R_DesignElements/'), 
+                                       pattern = "svg", full.names = TRUE)) %>%
+  mutate(columns = basename(tools::file_path_sans_ext(icons))) %>%
+  separate(columns, into = c("columns","content"), sep = "_", extra = "drop") %>%
+  mutate(columns = case_when(columns == "Country" ~ "ISO",
+                             TRUE ~ columns)) %>%
+  
+  # keep only the icons needed for this graph
+  filter(columns %in% c('RatingOverall','SubRating',"NetZeroRating", 
+                        'ISO', 'SpacerLine', 'SpacerBlank'))
+
+# match data to icons, select the final columns and transpose
+dfclean <- left_join(data, icons, by = c("content","columns")) %>% 
+  select(-content, -columns) %>% 
+  pivot_wider(names_from = "name", values_from = "icons") %>%
+  select(-Country)
+
+# transform headers in numbers so it doesn't affect the size of icons
+colnames(dfclean) <- 1:ncol(dfclean) 
+
+table <- gt(dfclean) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, height = 50), 
+              .default = NA)}) %>%  # it's better to deal with NAs in the data and not have to deal with them here
+  cols_align(align = "center", columns = everything()) %>%
+   tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(0),
+              column_labels.padding = px(20),
+              column_labels.font.size = 2,
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+```
+
+
+```{r, echo=FALSE}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/CATRatings-AllRatingsTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-OverallRating.pdf"), zoom = 1.5, vwidth = 1400)
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-OverallRating.png"), vwidth = 2400)
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+ <br />
+ 
+ 
+****
+
+### Excluding LULUCF and Net zero
+
+```{r}
+dfcleanShorter <- dfclean %>%
+  select(`1`:`10`)
+
+# make table
+colnames(dfcleanShorter) <- 1:length(dfcleanShorter)
+table <- gt(dfcleanShorter) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, eval = TRUE}
+#knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-Overall_ExclLULUCFnetZero.pdf"), zoom = 1.5, vwidth = 1600)
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+ <br />
+ 
+ 
+****
+
+### Export clean Overall data
+
+```{r}
+colRate <- data.frame(rate = c('green','yellow','orange','red','darkgray','gray','lightgray'),
+           font = c('#FFFFFF','#666F71','#FFFFFF','#FFFFFF','#FFFFFF','#666F71','#666F71'),
+           fill = c('#B1CC68','#F2E563','#F3AC48','#F06949','#575F62','#D5D7D8','#EEEFEF'),
+           value = c(5,4,3,2,1,7,8))
+
+countries <- read.delim('countryNames.txt') %>% 
+  select(ISO, full) %>% 
+  rename(Country = 'full')
+
+ratings <- read.delim('RatingIDs.txt', header = TRUE, sep = "\t", check.names = FALSE) 
+  
+temp <- data0 %>% 
+  select(-Country,) %>% 
+  left_join(countries) %>% 
+  relocate(Country, .before = 'ISO') 
+
+temp1 <- temp %>% 
+  pivot_longer(cols = `Overall rating`:`Fair Share target`) %>% 
+  select(Country, ISO, name, value) %>% 
+  left_join(filter(pivot_longer(ratings, cols = -classification, names_to = 'value',
+                                values_to ='rating'), 
+                   classification %in% 'CAT rating'))
+
+
+temp2 <- temp %>% 
+  pivot_longer(cols = `Climate finance`:`Net Zero target`, 
+               names_to = 'classification') %>% 
+  select(Country, ISO, classification, value) %>% 
+  left_join(filter(pivot_longer(ratings, cols = -classification, names_to = 'value',
+                                values_to ='rating'), 
+                   !classification %in% 'CAT rating')) %>% 
+  rename(name = 'classification')
+
+data1 <- bind_rows(temp1,temp2) %>% 
+  select(-value,-classification) %>% 
+  pivot_wider(names_from = 'name', values_from = 'rating')
+
+
+### Make excel file
+
+wb <- createWorkbook("DFC")
+sheet <- 'Overall rating overview'
+addWorksheet(wb = wb, sheetName = sheet)
+
+#### add white background
+addStyle(wb, sheet = sheet,
+         cols=1:50,
+         rows=1:50,
+         style = createStyle(fgFill = 'white'),
+         gridExpand = TRUE, stack = TRUE)
+
+#### set column width
+setColWidths(wb, sheet = sheet, 
+             cols = 1:15, widths = 20)
+
+#### go by column and then by rows to match the codes to the right colors using original data before matching labels
+## LULUCF and Net zero have slightly different colored codes
+
+for(j in c(3:7)){ ##go across columns to highlight
+  for(i in 1:nrow(data1)){ ## go across each row
+    value <- pull(data0[i,j])
+    if(!is.na(value)){
+      addStyle(wb, sheet = sheet,
+               cols=j,
+               rows=i+1,
+               style = createStyle(fontColour = colRate[colRate$value %in% value,'font'],
+                                   fgFill = colRate[colRate$value %in% value,'fill']),
+               gridExpand = TRUE, stack = TRUE)
+      
+    } 
+  }
+}
+
+# LULUCF ratings
+j <- 8
+colRate$LULUCF <- c("3","0","4","1","0","2","0")
+for(i in 1:nrow(data1)){ ## go across each row
+  value <- pull(data0[i,j])
+  if(!is.na(value)){
+    addStyle(wb, sheet = sheet,
+             cols=j,
+             rows=i+1,
+             style = createStyle(fontColour = colRate[colRate$LULUCF %in% value,'font'],
+                                 fgFill = colRate[colRate$LULUCF %in% value,'fill']),
+             gridExpand = TRUE, stack = TRUE)
+  }
+}
+
+# Net zero ratings
+j <- 9
+colRate$Net <- c("5","4","0","3","0","1","8")
+colRate[8,]  <- cbind(colRate[6,1:5],"2")
+
+for(i in 1:nrow(data1)){ ## go across each row
+  value <- pull(data0[i,j])
+  if(!is.na(value)){
+    addStyle(wb, sheet = sheet,
+             cols=j,
+             rows=i+1,
+             style = createStyle(fontColour = colRate[colRate$Net %in% value,'font'],
+                                 fgFill = colRate[colRate$Net %in% value,'fill']),
+             gridExpand = TRUE, stack = TRUE)
+  }
+}
+
+#### bold the row header
+addStyle(wb, sheet = sheet,
+         cols=1,
+         rows=1:(nrow(data0)+1),
+         style = createStyle(textDecoration = "Bold"),
+         gridExpand = TRUE, stack = TRUE)
+
+#### bold the column header
+addStyle(wb, sheet = sheet,
+         cols=1:(ncol(data0)+1),
+         rows=1,
+         style = createStyle(textDecoration = "Bold"),
+         gridExpand = TRUE, stack = TRUE)
+
+#### insert exported matching table image as reminder
+insertImage(wb, sheet = sheet,
+            file = paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-OverallRating.png"),
+            startRow = 1, startCol = 11, 
+            width = 3582, height = 4387, units = 'px')  
+
+writeData(wb = wb, sheet = sheet, x = data1)
+saveWorkbook(wb, paste0(path,'4_R-exported/1-Overall/CAT_rExport_Overall_dataClean.xlsx'), overwrite = TRUE)
+```
+
+ <br />
+ 
+****
+
+### Almost suficient countries
+
+```{r}
+dfcleanAlmost <- dfclean %>%
+  filter(str_detect(`2`, "RatingOverall_4_AlmostSufficient"))
+
+# make table
+colnames(dfcleanAlmost) <- 1:length(dfcleanAlmost)
+table <- gt(dfcleanAlmost) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, eval = TRUE}
+#knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-Overall_4-AlmostSufficient.pdf"), 
+       vwidth = 850)
+```
+
+<br />
+ 
+****
+
+### Insufficient countries
+
+```{r}
+dfcleanInsufficient <- dfclean %>%
+  filter(str_detect(`2`, "RatingOverall_3_Insufficient"))
+
+# make table
+colnames(dfcleanInsufficient) <- 1:length(dfcleanInsufficient)
+table <- gt(dfcleanInsufficient) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, eval = TRUE}
+#knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-Overall_3-Insufficient.pdf"), vwidth = 850)
+```
+
+<br />
+ 
+****
+
+### Highly Insufficient countries
+
+```{r}
+dfcleanHighlyInsufficient <- dfclean %>%
+  filter(str_detect(`2`, "RatingOverall_2_HighlyInsufficient"))
+
+# make table
+colnames(dfcleanHighlyInsufficient) <- 1:length(dfcleanHighlyInsufficient)
+table <- gt(dfcleanHighlyInsufficient) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, eval = TRUE}
+#knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-Overall_2-HighlyInsufficient.pdf"), vwidth = 850)
+```
+
+<br />
+ 
+****
+
+### Critically Insufficient countries
+
+```{r}
+dfcleanCriticallyInsufficient <- dfclean %>%
+  filter(str_detect(`2`, "RatingOverall_1_CriticallyInsufficient"))
+
+# make table
+colnames(dfcleanCriticallyInsufficient) <- 1:length(dfcleanCriticallyInsufficient)
+table <- gt(dfcleanCriticallyInsufficient) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, eval = TRUE}
+#knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsDetails-1-Overall_1-CriticallyInsufficient.pdf"), vwidth = 850)
+```
+
+<br />
+ 
+****
+
+****
+
+## 2-Net Zero
+
+
+```{r, eval = TRUE}
+setHeight = 50  ### used to adjust icons size, here to be easier to edit
+
+# call the right icons folder
+icons <- data.frame(icons = list.files(paste0(path, '2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/'), 
+                                       pattern = "svg", full.names = TRUE)) %>%
+  mutate(columns = basename(tools::file_path_sans_ext(icons))) %>%
+  separate(columns, into = c("columns","content"), sep = "_", extra = "drop") %>%
+  mutate(columns = case_when(columns == "Country" ~ "ISO",
+                             columns == "Year" ~ "Target year",
+                             TRUE ~ columns),
+         content = str_replace(content, '-','_'))
+
+
+data0 <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                  sheet = "NetZero-Subratings", 
+                   col_types = 'text') %>%
+  arrange(as.factor(as.numeric(`Sorting order`))) %>% ## sort data according to sorting column in excel sheet
+  rename(`Overall Rating` = "Headline evaluation") 
+
+data <- data0 %>%
+  #transpose data to deal with subrating Elements
+  pivot_longer(cols = -c("Country", "ISO", "Overall Rating", "Target year",
+                         "Sorting order"),
+               names_to = "Element",
+               values_to = "SubratingDescription") %>%
+  rename("RatingDescription" = "Overall Rating") %>%
+  
+  # Make SubRating and Rating columns from letter ID 
+  mutate(SubratingDescription = case_when(RatingDescription %in% 'g. Assessment in progress' | 
+                                 RatingDescription %in% 'f. No target' ~ 'NA',
+                               TRUE ~ SubratingDescription),
+         SubRating = str_to_upper(str_extract(SubratingDescription, "[a-z]{1}")),
+         Rating = str_to_upper(str_extract(RatingDescription, "[a-z]{1}")),
+         # replace NAs in year by Blank to match the icon
+         # change code year string that are not just a year to be match with available icon 
+         `Target year` = case_when(`Target year` %in% "NA" ~ "Blank",
+                                   `Target year` %in% "Not defined" ~ "NotDefined",
+                                   Rating %in% 'F' | Rating %in% 'G' ~ "Blank",
+                                   TRUE ~ `Target year`)) 
+
+## split the data into two tables to match the icons given the same numbers for Overall rating and for subrating categories
+# For the Overall Net Zero rating
+df1 <- data %>%
+  select(Country, ISO, Rating, "Target year") %>%   
+  distinct() %>% # required to avoid issues because after selecting columns this ends up with duplicated rows
+  
+  # when transposing make intermediate content column to replace spaces in the names to be able to match icons
+  pivot_longer(cols = c("ISO", "Rating","Target year"), 
+               names_to = "columns", values_to = "content0") %>%  
+  mutate(content = str_replace_all(content0," ",""), #replace spaces by no spaces in matching names
+         content = str_replace_all(content, "–","_"),
+         columns = case_when(columns %in% 'Rating' ~ 'RatingNetZero',
+                             TRUE ~ columns)) %>%
+  left_join(icons, by = c("columns","content")) %>%
+  select(-content0) 
+
+# For the subratings, select the necessary columns to match with icons
+df2 <- data %>%
+  select(Country,"SubRating","Element") %>%
+  replace_na(list(SubRating = "G")) %>%  ## for now put NAs as blank gray icon
+  distinct() %>%
+  rename(content = "SubRating") %>%
+  left_join(select(filter(icons, columns %in% 'SubRating'), -columns), by = "content") %>%
+  rename(columns = 'Element')
+
+# join the matched data and transpose back
+dfclean <- bind_rows(df1, df2) %>%
+  select(-content) %>%
+  pivot_wider(names_from = columns, values_from = icons) %>%
+  select(-Country) 
+
+# make table
+colnames(dfclean) <- 1:length(dfclean)
+table <- gt(dfclean) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+
+```{r, echo = FALSE, dev=c('png', 'pdf', 'svg', 'tiff')}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero__ABCDEFG.pdf"), 
+      zoom = 1, vwidth = 1000)
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero__ABCDEFG.png"), 
+      zoom = 1, vwidth = 1000)
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+ <br />
+
+****
+
+### Export clean Net Zero data
+
+```{r, eval = TRUE}
+colRate <- data.frame(rate = c('a','b','c','d','e','f','g'),
+           font = c('#FFFFFF','#666F71','#FFFFFF','#FFFFFF','#666F71','#666F71','#666F71'),
+           fill = c('#B1CC68','#F2E563','#F3AC48','#F06949','#D5D7D8','#EEEFEF','#EEEFEF'))
+
+countries <- read.delim('countryNames.txt') %>% 
+  select(ISO, full) %>% 
+  rename(Country = 'full')
+
+temp <- data0 %>% 
+  select(-Country,-`Sorting order`) %>% 
+  left_join(countries) %>% 
+  relocate(Country, .before = 'ISO') %>% 
+  pivot_longer(cols = -c("Country", "ISO", "Target year","Overall Rating"),
+               names_to = "Element",
+               values_to = "SubratingDescription") %>% 
+  mutate(SubratingDescription = substring(SubratingDescription, 4),
+         `Overall Rating` = substring(`Overall Rating`, 4),
+         SubratingDescription = case_when(`Overall Rating` %in% 'No target' | 
+                                            `Overall Rating` %in% 'Assessment in progress' ~ '',
+                                          TRUE ~ SubratingDescription ),
+         `Target year` = case_when(`Overall Rating` %in% 'No target' | 
+                                     `Overall Rating` %in% 'Assessment in progress' ~ '',
+                                   TRUE ~ `Target year`)) %>% 
+  pivot_wider(names_from = Element, values_from = SubratingDescription)
+
+wb <- createWorkbook("DFC")
+sheet <- 'Net zero evaluation overview'
+addWorksheet(wb = wb, sheetName = sheet)
+
+addStyle(wb, sheet = sheet, 
+         cols=1:50,
+         rows=1:50,  
+         style = createStyle(fgFill = 'white'), 
+         gridExpand = TRUE, stack = TRUE)
+
+setColWidths(wb, sheet = sheet, 
+             cols = 1:15, widths = 15)
+
+for(j in c(3,5:13)){ ##go across columns to highlight
+  for(i in 1:nrow(data0)){ ## go across each row
+    rate <- substr(pull(data0[i,j]),1, 1)
+    if(rate %in% colRate[,'rate']){
+      addStyle(wb, sheet = sheet, 
+               cols=j,
+               rows=i+1,  
+               style = createStyle(fontColour = colRate[colRate$rate %in% rate,'font'], 
+                                   fgFill = colRate[colRate$rate %in% rate,'fill']), 
+               gridExpand = TRUE, stack = TRUE)
+    }
+  }
+}
+
+addStyle(wb, sheet = sheet, 
+         cols=4:ncol(data0),
+         rows=which(temp$`Overall Rating` %in% 'No target' | temp$`Overall Rating` %in% 'Assessment in progress') + 1,  
+         style = createStyle(fgFill = 'white'), 
+         gridExpand = TRUE, stack = TRUE)
+
+#### bold the row header
+addStyle(wb, sheet = sheet,
+         cols=1,
+         rows=1:(nrow(data0)+1),
+         style = createStyle(textDecoration = "Bold"),
+         gridExpand = TRUE, stack = TRUE)
+
+#### bold the column header
+addStyle(wb, sheet = sheet,
+         cols=1:(ncol(data0)+1),
+         rows=1,
+         style = createStyle(textDecoration = "Bold"),
+         gridExpand = TRUE, stack = TRUE)
+
+insertImage(wb, sheet = sheet,
+            file = paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero__ABCDEFG.png"),
+            startRow = 1, startCol = 16, 
+            width = 11.57, height = 27.22, units = 'cm')  
+
+writeData(wb = wb, sheet = sheet, x = temp)
+saveWorkbook(wb, paste0(path,'4_R-exported/2-Netzero/CAT_rExport_NetZeroTargets_dataClean.xlsx'), 
+             overwrite = TRUE)
+```
+
+
+****
+
+### Acceptable countries
+
+```{r}
+dfcleanAccepted <- dfclean %>%
+  filter(str_detect(`2`, "RatingNetZero_A_Acceptable"))
+
+# make table
+colnames(dfcleanAccepted) <- 1:length(dfcleanAccepted)
+table <- gt(dfcleanAccepted) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, dev=c('png', 'pdf', 'svg', 'tiff')}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero_A-Acceptable.pdf"), vwidth = 600)
+```
+
+ <br />
+ 
+****
+
+### Average countries
+
+```{r}
+dfcleanAccepted <- dfclean %>%
+  filter(str_detect(`2`, "RatingNetZero_B_Average"))
+
+# make table
+colnames(dfcleanAccepted) <- 1:length(dfcleanAccepted)
+table <- gt(dfcleanAccepted) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, dev=c('png', 'pdf', 'svg', 'tiff')}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero_B-Average.pdf"), vwidth = 600)
+```
+
+ <br />
+ 
+****
+
+### Poor countries
+
+```{r}
+dfcleanAccepted <- dfclean %>%
+  filter(str_detect(`2`, "RatingNetZero_D_Poor"))
+
+# make table
+colnames(dfcleanAccepted) <- 1:length(dfcleanAccepted)
+table <- gt(dfcleanAccepted) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, dev=c('png', 'pdf', 'svg', 'tiff')}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero_D-Poor.pdf"), vwidth = 600)
+```
+
+ <br />
+
+****
+
+### Information Incomplete countries
+
+```{r}
+dfcleanAccepted <- dfclean %>%
+  filter(str_detect(`2`, "RatingNetZero_E_InformationIncomplete"))
+
+# make table
+colnames(dfcleanAccepted) <- 1:length(dfcleanAccepted)
+table <- gt(dfcleanAccepted) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, dev=c('png', 'pdf', 'svg', 'tiff')}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero_E-InformationIncomplete.pdf"), vwidth = 600)
+```
+
+ <br />
+ 
+****
+
+### No target countries
+
+```{r}
+dfcleanAccepted <- dfclean %>%
+  filter(str_detect(`2`, "RatingNetZero_F_NoTarget"))
+
+# make table
+colnames(dfcleanAccepted) <- 1:length(dfcleanAccepted)
+table <- gt(dfcleanAccepted) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, dev=c('png', 'pdf', 'svg', 'tiff')}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero_F-NoTarget.pdf"), vwidth = 600)
+```
+
+ <br />
+ 
+****
+
+### Rated countries
+
+```{r}
+## Exclude No target and In Progress countries
+
+dfcleanAccepted <- dfclean %>%
+  filter(!str_detect(`2`, "RatingNetZero_F_NoTarget"), 
+         !str_detect(`2`, "RatingNetZero_G_InProgress"))
+
+# make table
+colnames(dfcleanAccepted) <- 1:length(dfcleanAccepted)
+table <- gt(dfcleanAccepted) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, 
+                               height = setHeight))}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(1),
+              data_row.padding.horizontal = px(3),
+              column_labels.font.size = 2,
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden") %>%
+  
+  ## to make the border after the Rating column different from the others borders
+ tab_style(
+    style = cell_borders(
+      sides = "right",
+      color = "white",
+      weight = px(2),
+      style = "solid"
+    ),
+    locations = cells_body(columns = `2`, rows = everything()))
+```
+
+```{r, echo = FALSE, dev=c('png', 'pdf', 'svg', 'tiff')}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-Netzero/CAT_rExport_RatingsDetails-2-NetZero__ABDE-Rated.pdf"), 
+       zoom = 1, vwidth = 1000)
+```
+
+ <br />
+
+****
+
+## 3-Climate Finance
+
+```{r}
+data <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                   sheet = "ClimateFinance-Subratings", na = "NA", col_types = 'text') %>%
+  filter(!is.na(`Overall rating`)) %>% 
+  add_column(SpacerLine_1 = "40", .before = "Absolute contributions") %>%
+  add_column(SpacerLine_2 = "20", .before = "Historic trend") %>%
+  add_column(SpacerLine_3 = "20", .before = "Future commitments") %>%
+  add_column(SpacerLine_4 = "20", .before = "Overseas finance") %>%
+  arrange(desc(`Overall rating`), Country) %>%
+  pivot_longer(cols = -Country, values_to = "content") 
+
+# load icons paths with filtered to what is needed
+icons <- data.frame(icons = list.files(paste0(path, '2_R-GraphicElements/CATRatings-AllRatingsTable/R_DesignElements/'), 
+                                       pattern = "svg", full.names = TRUE)) %>%
+  mutate(columns = basename(tools::file_path_sans_ext(icons))) %>%
+  separate(columns, into = c("columns","content"), sep = "_", extra = "drop") %>%
+  mutate(columns = case_when(columns == "Country" ~ "ISO",
+                             TRUE ~ columns)) %>%
+  filter(columns %in% c('RatingOverall','SubRating','ISO', 'SpacerLine'))
+
+#### split the data before matching because of Overall rating and Subrating icons
+df1 <- data %>% 
+  filter(name %in% c("ISO","Overall rating")) %>% 
+  left_join(filter(icons, columns %in% c("ISO",'RatingOverall')), by = "content")
+
+df2 <- data %>% 
+  filter(!name %in% c("ISO","Overall rating")) %>% 
+  replace_na(list(content = "Blank")) %>% 
+  left_join(filter(icons, !columns %in% c("ISO",'RatingOverall')), by = "content")
+
+dfclean <- bind_rows(df1,df2)  %>%
+  select(-content, -columns) %>%
+  pivot_wider(names_from = 'name', values_from = 'icons') %>%
+  select(-Country)
+
+colnames(dfclean) <- 1:ncol(dfclean) 
+table <- gt(dfclean) %>%
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      map_chr(x, ~ local_image(filename = .x, height = setHeight), .default = NA)}) %>%
+  cols_align(
+    align = "center",
+    columns = everything()) %>%
+   tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(1),
+              column_labels.padding = px(20),
+              column_labels.font.size = 2,
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00") 
+```
+
+```{r, echo=FALSE}
+table
+```
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/3-ClimateFinance/CAT_rExport_RatingsDetails-3-ClimateFinance.pdf")) #, zoom = 1.5
+
+gtsave(table, paste0(path,"4_R-exported/3-ClimateFinance/CAT_rExport_RatingsDetails-3-ClimateFinance.png"),
+       vwidth = 1400)
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+****
+
+# Ratings comparison
+
+## 1-Overall
+
+```{r}
+setHeight <- 40
+data <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                   sheet = "Overall-Comparison", col_types = 'text') %>% 
+  pivot_longer(cols = -c(`Sorting order`,Country), values_to = "content") %>% 
+  mutate(columns = case_when(!name %in% "ISO" ~ "RatingOverall",
+                             TRUE ~ name),
+         content = case_when(content %in% '10' ~ 'SpacerLine',  ## only makes sense for net zero, but kept in case it's needed
+                             TRUE ~ content)) 
+
+icons <- data.frame(icons = list.files(paste0(path, '2_R-GraphicElements/CATRatings-TableComparison/R_DesignElements/'), 
+                                       pattern = "svg", full.names = TRUE)) %>%
+  mutate(columns = basename(tools::file_path_sans_ext(icons))) %>%
+  separate(columns, into = c("columns","content"), sep = "_", extra = "drop") %>%
+  mutate(columns = case_when(columns == "Country" ~ "ISO",
+                             TRUE ~ columns)) 
+  
+dfclean <- icons %>% 
+  filter(columns %in% c("RatingOverall","ISO")) %>% 
+  left_join(data,., by = c("content", "columns")) %>% 
+  arrange(as.factor(as.numeric(`Sorting order`))) %>% 
+  select(-content, -columns,-`Sorting order`) %>%
+  pivot_wider(names_from = 'name', values_from = 'icons') %>%
+  select(-Country)  %>% 
+  replace(is.na(.), icons[icons$content %in% 'NewCountry','icons']) %>%  ### deal with NA cells
+  #replace(is.na(.), icons[str_detect(icons$icons,'SpacerLine.svg'),'icons']) %>% 
+  mutate(arrow = case_when(str_detect(`Previous Rating`,'SpacerLine.svg') ~
+                             icons[str_detect(icons$icons,'SpacerLine_90.svg'),'icons'],
+                           TRUE ~ icons[str_detect(icons$icons,'SpacerArrow_90.svg'),'icons']), 
+         .before = 3)
+
+### make first row the path for the header elements
+colnames(dfclean) <- c('country','oldRating','arrow','newRating')
+
+table <- gt(dfclean) %>%
+  cols_label(country = '', oldRating = '', arrow = '', newRating = '') %>%  ### don't use headers
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      # loop over the elements of the column
+      map_chr(x, ~ local_image(filename = .x, height = setHeight), .default = NA)}) %>%
+   tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(0),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00")
+```
+
+
+```{r, echo=FALSE}
+table
+```
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/1-Overall/CAT_rExport_RatingsChange-1-OverallRating.pdf"), zoom = 1, vwidth = 1400)
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+****
+
+## 2-Net Zero
+
+```{r}
+setHeight <- 40
+data <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                   sheet = "NetZero-Comparison", col_types = 'text') %>% 
+  pivot_longer(cols = -c(`Sorting order`,Country), values_to = "content") %>% 
+  mutate(columns = case_when(!name %in% "ISO" ~ "NetZeroOverall",
+                             TRUE ~ name),
+         content = case_when(content %in% '10' ~ 'SpacerLine',
+                             TRUE ~ content)) 
+
+icons <- data.frame(icons = list.files(paste0(path, '2_R-GraphicElements/CATRatings-TableComparison/R_DesignElements/'), 
+                                       pattern = "svg", full.names = TRUE)) %>%
+  mutate(columns = basename(tools::file_path_sans_ext(icons))) %>%
+  separate(columns, into = c("columns","content"), sep = "_", extra = "drop") %>%
+  mutate(columns = case_when(columns == "Country" ~ "ISO",
+                             TRUE ~ columns)) 
+  
+dfclean <- icons %>% 
+  filter(columns %in% c("NetZeroOverall","ISO")) %>% 
+  left_join(data,., by = c("content", "columns")) %>% 
+  arrange(as.factor(as.numeric(`Sorting order`))) %>% 
+  select(-content, -columns,-`Sorting order`) %>%
+  pivot_wider(names_from = 'name', values_from = 'icons') %>%
+  select(-Country) %>% 
+  replace(is.na(.), icons[icons$content %in% 'NewCountry','icons']) %>%  ### deal with NA cells
+  mutate(arrow = case_when(str_detect(`Previous Rating`,'SpacerLine.svg') ~
+                             icons[str_detect(icons$icons,'SpacerLine_90.svg'),'icons'],
+                           TRUE ~ icons[str_detect(icons$icons,'SpacerArrow_90.svg'),'icons']), 
+         .before = 3)
+  
+### make first row the path for the header elements
+colnames(dfclean) <- c('country','oldRating','arrow','newRating')
+
+table <- gt(dfclean) %>%
+  cols_label(country = '', oldRating = '', arrow = '', newRating = '') %>%  ### don't use headers
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      # loop over the elements of the column
+      map_chr(x, ~ local_image(filename = .x, height = setHeight), .default = NA)}) %>%
+   tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(0),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00")
+```
+
+
+```{r, echo = FALSE}
+table
+```
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-NetZero/CAT_rExport_RatingsChange-2-NetZeroRating.pdf"), zoom = 1, vwidth = 1400)
+```
+
+ <br />
+ 
+Using `r setHeight` as icon height
+
+****
+
+### Exclude Assessment In Progress
+
+```{r}
+dfcleanRated <- dfclean %>%
+  filter(!str_detect(newRating, "NetZeroOverall_8_AssessmentInProgress"))
+
+table <- gt(dfcleanRated) %>%
+  cols_label(country = '', oldRating = '', arrow = '', newRating = '') %>%  ### don't use headers
+  text_transform(
+    locations = cells_body(columns = everything()),
+    fn = function(x) {
+      # loop over the elements of the column
+      map_chr(x, ~ local_image(filename = .x, height = setHeight), .default = NA)}) %>%
+   tab_options(data_row.padding = px(0),
+              data_row.padding.horizontal = px(0),
+              column_labels.padding = px(20),
+              table.border.top.style = "hidden",
+              table_body.border.top.style = "hidden",
+              table_body.border.bottom.style = "hidden",
+              table_body.hlines.style = "hidden",
+              table.border.bottom.style = "hidden",
+              column_labels.border.bottom.style = "hidden",
+              table.background.color = "#FFFFFF00")
+```
+
+```{r, echo = FALSE}
+knitr::include_graphics(paste0(path, "/2_R-GraphicElements/NetZeroComprehensivenessTable/R_DesignElements/Header_NetZeroTable.svg"))
+table
+```
+
+
+```{r, include = FALSE}
+gtsave(table, paste0(path,"4_R-exported/2-NetZero/CAT_rExport_RatingsChange-2-NetZeroRating_Rated.pdf"), 
+       zoom = 1, vwidth = 1400)
+```
+
+ <br />
+ 
+****
+
+# Per country
+
+## 3-Climate Finance
+
+```{r, eval = TRUE, results='asis'}
+### better to use the shinny app
+
+date_stamp <- lubridate::stamp("Jan 2000", orders = '"%Ob %Y"(1)')
+
+colRate <- data.frame(rate = c('Good', 'Almost sufficient','Insufficient',
+                   'Highly Insufficient','Critically Insufficient'),
+           font = c('#FFFFFF','#666F71','#FFFFFF','#FFFFFF','#FFFFFF'),
+           fill = c("#B0CB68","#F2E464","#F2AC48","#EF694A","#575F62"))
+
+icons <- data.frame(icons = list.files(paste0(path,                                          '2_R-GraphicElements/CATRatings-ClimateFinanceSubratings/R_DesignElements/'), 
+                                       pattern = "svg", full.names = TRUE)) %>%
+  mutate(name = basename(tools::file_path_sans_ext(icons))) %>%
+  separate(name, into = c("columns","content"), sep = "_", extra = "drop", 
+           remove = TRUE, fill = 'left') 
+
+countries <- read.delim('countryNames.txt') %>% 
+  select(ISO, full) %>% 
+  rename(Country = 'full')
+
+
+### this excel was done from the finance sheet of the CAT_ratings_overview excel file
+data00 <- read_excel(
+  paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+  sheet = "ClimateFinance-Subratings", na = "NA",
+             col_types = 'text') 
+  
+  data0 <- data00 %>% 
+  rename(Current = 'Absolute contributions',
+         Trend = 'Historic trend',	Future = 'Future commitments',
+         Overseas = 'Overseas finance', Overall =	'Overall rating') %>% 
+  select(-Country) %>% 
+  left_join(countries) %>% 
+  filter(!is.na(Overall)) %>% 
+      replace(is.na(.), 'NA') %>% 
+  relocate(c(Country,Overall,Trend,Future,Current), .after = ISO) %>% 
+  select(-ISO) 
+
+
+data <- data0 %>%
+  # select(-Country) %>% 
+  pivot_longer(cols = -Country, names_to = 'columns', values_to = 'content')  %>%
+  left_join(icons) %>% 
+  select(-content)
+
+
+for (I in 1:nrow(data0)){
+tb01 <- data %>% 
+  filter(Country %in% data0[[I,'Country']], columns %in% c('Overall','Current')) %>% 
+  select(icons)
+
+colCo <- colRate[colRate$rate %in% tb01[[1,1]],'fill']
+colFo <- colRate[colRate$rate %in% tb01[[1,1]],'font']
+
+tb1 <- tb01 %>% 
+  gt() %>% 
+  opt_table_font(font = list(google_font("Ubuntu"), default_fonts())) %>% 
+    text_transform(locations = cells_body(columns = 1, rows = 1),
+                 fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                             height = 30))}) %>% 
+  text_transform(locations = cells_body(columns = 1, rows = 2),
+                 fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                             height = 22))}) %>% 
+  cols_align(align = "center", columns = everything()) %>%  # column headers in the center
+  tab_options(  column_labels.hidden = TRUE,
+                table.font.size = 9,
+                data_row.padding = px(3), #3
+                data_row.padding.horizontal = px(1),
+                table.border.top.style = "hidden",
+                table_body.border.top.style = "hidden",
+                table_body.border.bottom.style = "hidden",
+                table_body.hlines.color = "white",  
+                table.border.bottom.style = "hidden", 
+                table.background.color = "transparent"  ###doesn't work with output in pdf
+  ) %>% 
+  tab_header(title = paste(data0[[I,'Country']], 'Climate Finance rating')) %>% 
+  tab_style(style = cell_text(v_align="middle",  weight = 'bold', 
+                              color =  "#4F8EB5", transform = "uppercase"), 
+            locations = cells_title()) 
+tb1
+
+# gtsave(tb1, paste0(path,"R-code/temp/tb1.html")) 
+# file.rename(paste0(path,"R-code/temp/tb1.html"), paste0(path,"R-code/temp/tb1.rawhtml"))
+
+
+tb02 <- data %>% 
+  filter(Country %in% data0[[I,'Country']], !columns %in% c('Overall','Current')) %>%
+  pivot_wider(names_from = columns, values_from = icons) %>%   
+  select(-Country) 
+
+tb2 <- tb02 %>% 
+  replace(is.na(.), '') %>% 
+  add_row(Trend = 'climateactiontracker.org',
+          Future = '',
+          Overseas = paste(date_stamp(today()),'Update')) %>% 
+  gt() %>% 
+  opt_table_font(font = list(google_font("Ubuntu"), default_fonts())) %>% 
+  text_transform(locations = cells_body(columns = which(!is.na(tb02[1,])), rows = 1),
+                 fn = function(x) { map_chr(x, ~ local_image(filename = .x, 
+                                                             height = 22))}) %>% 
+  cols_align(align = "center", columns = everything()) %>%  # column headers in the center
+  tab_options(  column_labels.hidden = TRUE,
+                table.font.size = 4,
+                data_row.padding = px(4), #4
+                data_row.padding.horizontal = px(4),
+                table.border.top.style = "hidden",
+                table_body.border.top.style = "hidden",
+                # table_body.border.bottom.style = "hidden",
+                table_body.hlines.color = "white",
+                table.border.bottom.style = "hidden", ### problem only solved with extra last row
+                # column_labels.border.bottom.style = "hidden",
+                table.background.color = 'transparent') %>% 
+  opt_table_font(font = list(google_font("Ubuntu"), default_fonts())) %>% 
+  tab_style(style = cell_text(v_align="top", align="left", size = 'x-small'), 
+            locations = cells_body(columns = 1, rows = 2)) %>% 
+  tab_style(style = cell_text(v_align="top", align="right", size = 'x-small'),  
+            locations = cells_body(columns = 3, rows = 2)) %>% 
+  tab_style(style = cell_borders(sides = c("left","bottom"), color = 'white', 
+                                 weight = px(8), style = "solid"),
+            locations = cells_body(columns = 1, rows = 1)) %>% 
+  tab_style(style = cell_borders(sides = c("bottom"), color = 'white', 
+                                 weight = px(8), style = "solid"),
+            locations = cells_body(columns = 2, rows = 1)) %>% 
+  tab_style(style = cell_borders(sides = c("right","bottom"), color = 'white', 
+                                 weight = px(8), style = "solid"),
+            locations = cells_body(columns = 3, rows = 1)) 
+
+tb2
+# gtsave(tb2, paste0(path,"R-code/temp/tb2.html")) 
+# file.rename(paste0(path,"R-code/temp/tb2.html"), paste0(path,"R-code/temp/tb2.rawhtml"))
+### change extension from html to rawhtml for the combine function to work
+
+### make css file because of font being changed when html files are combined
+# tableHTML::make_css(list('html', 'height', '100%'),
+#                   list('body', c('margin', 'padding', 'font','height'),
+#                        c('10px', '0', '13px "Ubuntu", sans-serif', '100%')),
+#                   file = 'temp/style_manual.css')
+# 
+# R3port::html_combine(combine = paste0(path,"R-code/temp/"), 
+#                      out = "test.html", toctheme = TRUE, clean = 2, show = FALSE,
+#                      css = 'style_manual.css')
+# 
+# psycModel::html_to_pdf(file_path = paste0(path,"R-code/temp/test.html"))
+# 
+# file.rename(paste0(path,"R-code/temp/test.pdf"), paste0(path,"4_R-exported/3-ClimateFinance/CAT_rExport_ClimateFinance-",data0[[I,'Country']],".pdf"))
+}
+
+
+```
+
+
+
+### Export clean Climate Finance data
+
+```{r, eval = TRUE}
+countries <- read.delim('countryNames.txt') %>% 
+  select(ISO, full) %>% 
+  rename(Country = 'full')
+
+data0 <- read_excel(paste0(path,'1_CAT-Box-ExcelDataInputs/2_R_FormattedData/CAT-Ratings-AllData-CurrentData.xlsx'), 
+                   sheet = "ClimateFinance-Subratings", na = "NA", col_types = 'text') %>%
+  filter(!is.na(`Overall rating`)) %>% 
+  arrange(desc(`Overall rating`), Country) %>% 
+  select(-Country) %>% 
+  left_join(countries) %>% 
+  relocate(c('Country','ISO','Overall rating'), .before = 'Absolute contributions') 
+
+colRate <- data.frame(rate = c('green','yellow','orange','red','darkgray','lightgray'),
+           font = c('#FFFFFF','#666F71','#FFFFFF','#FFFFFF','#FFFFFF','#666F71'),
+           fill = c('#B1CC68','#F2E563','#F3AC48','#F06949','#575F62','#EEEFEF'),
+           value = c(5,4,3,2,1,6))
+
+ratings <- read.delim('RatingIDs.txt', 
+                      header = TRUE, sep = "\t", check.names = FALSE) %>% 
+  filter(classification %in% 'Climate finance') %>% 
+  pivot_longer(cols = -classification, 
+               names_to = 'value', values_to ='rating')
+  
+data1 <- data0 %>% 
+  pivot_longer(cols = `Overall rating`:`Overseas finance`) %>% 
+  select(Country, ISO, name, value) %>% 
+  left_join(ratings) %>% 
+  replace_na(list(rating = "")) %>% ## replace NAs to be an empty cell
+  select(-value,-classification) %>% 
+  pivot_wider(names_from = 'name', values_from = 'rating')
+
+wb <- createWorkbook("DFC")
+sheet <- 'Climate finance rating overview'
+addWorksheet(wb = wb, sheetName = sheet)
+
+addStyle(wb, sheet = sheet,
+         cols=1:ncol(data0),
+         rows=1:(nrow(data0)+1),
+         style = createStyle(fgFill = 'white'),
+         gridExpand = TRUE, stack = TRUE)
+
+for(j in c(3:7)){ ##go across columns to highlight
+  for(i in 1:nrow(data1)){ ## go across each row
+    value <- pull(data0[i,j])
+    if(!is.na(value)){
+      addStyle(wb, sheet = sheet,
+               cols=j,
+               rows=i+1,
+               style = createStyle(fontColour = colRate[colRate$value %in% value,'font'],
+                                   fgFill = colRate[colRate$value %in% value,'fill']),
+               gridExpand = TRUE, stack = TRUE)
+      
+    } 
+     if(is.na(value)){ ## color light gray cells without content
+      addStyle(wb, sheet = sheet,
+               cols=j,
+               rows=i+1,
+               style = createStyle(fgFill = colRate[colRate$value %in% '6','fill']),
+               gridExpand = TRUE, stack = TRUE)
+      
+    } 
+  }
+}
+
+#### bold the row header
+addStyle(wb, sheet = sheet,
+         cols=1,
+         rows=1:(nrow(data0)+1),
+         style = createStyle(textDecoration = "Bold"),
+         gridExpand = TRUE, stack = TRUE)
+
+#### bold the column header
+addStyle(wb, sheet = sheet,
+         cols=1:(ncol(data0)+1),
+         rows=1,
+         style = createStyle(textDecoration = "Bold"),
+         gridExpand = TRUE, stack = TRUE)
+
+insertImage(wb, sheet = sheet,
+            file = paste0(path,"4_R-exported/3-ClimateFinance/CAT_rExport_RatingsDetails-3-ClimateFinance.png"),
+            startRow = 1, startCol = 9, 
+            width = 2425, height = 1064, units = 'px')
+
+writeData(wb = wb, sheet = sheet, x = data1)
+saveWorkbook(wb, paste0(path,'4_R-exported/3-ClimateFinance/CAT_rExport_ClimateFinance_dataClean.xlsx'), overwrite = TRUE)
+```
+
+****
+
+```{r, out.height = "460px", out.width='800px', echo=F}
+files <- list.files(path = paste0(path, "4_R-exported/3-ClimateFinance/"), 
+                    pattern = "^CAT_rExport_ClimateFinance-(.*).pdf$",
+                    full.names = TRUE)
+
+knitr::include_graphics(files)
+```
+
+****
+
+```{r}
+sessionInfo()
+```
+
+
+
